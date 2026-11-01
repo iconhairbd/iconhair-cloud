@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICON HAIR - Cloud System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root { --primary: #6366f1; --sidebar-w: 240px; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --border: #e2e8f0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+    
+    /* Layout */
+    .app { display: flex; height: 100%; }
+    .sidebar { width: var(--sidebar-w); background: #1e1b4b; color: white; display: flex; flex-direction: column; z-index: 50; }
+    .main { flex: 1; overflow-y: auto; padding: 24px; position: relative; }
+    
+    /* Menu */
+    .menu-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; opacity: 0.7; transition: 0.2s; }
+    .menu-item:hover, .menu-item.active { opacity: 1; background: rgba(255,255,255,0.1); border-left: 4px solid #ec4899; }
+    .logo-area { padding: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px; }
+    .logo-img { width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #ec4899); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    
+    /* Components */
+    .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 20px; }
+    .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
+    
+    /* Searchable Dropdown */
+    .searchable-dropdown { position: relative; width: 100%; }
+    .search-input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); }
+    .search-results { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .search-item { padding: 10px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+    .search-item:hover { background: rgba(99,102,241,0.1); }
+    
+    /* Modal & Print */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(2px); }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--card); width: 500px; max-width: 90%; border-radius: 16px; padding: 24px; max-height: 90vh; overflow-y: auto; }
+    
+    @media print {
+        .sidebar, .header-actions, .no-print, .btn { display: none !important; }
+        .main { margin: 0 !important; padding: 0 !important; overflow: visible !important; background: white !important; }
+        .card { box-shadow: none !important; border: none !important; }
+        body { background: white !important; height: auto !important; }
+        #pageContainer { display: block !important; }
+        .page { display: none !important; }
+        #page-invoice { display: block !important; }
+    }
+
+    .hidden { display: none !important; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" style="position:fixed;inset:0;background:#1e1b4b;display:flex;align-items:center;justify-content:center;z-index:200;">
+    <div style="background:white;padding:40px;border-radius:16px;width:400px;text-align:center;">
+        <div style="width:60px;height:60px;background:linear-gradient(135deg,#6366f1,#ec4899);border-radius:12px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:24px;">IH</div>
+        <h2 style="margin-bottom:20px;color:#1e293b;">ICON HAIR Login</h2>
+        <input type="email" id="loginEmail" class="form-control mb-3" placeholder="Email Address">
+        <input type="password" id="loginPass" class="form-control mb-4" placeholder="Password">
+        <button onclick="handleLogin()" class="btn btn-primary w-full justify-center">Sign In</button>
+        <p id="loginError" style="color:red;margin-top:10px;font-size:12px;"></p>
+    </div>
+</div>
+
+<div class="app hidden" id="mainApp">
+    <!-- SIDEBAR -->
+    <aside class="sidebar no-print">
+        <div class="logo-area">
+            <div class="logo-img">IH</div>
+            <div><div style="font-weight:700;">ICON HAIR</div><div style="font-size:10px;opacity:0.7;">Cloud Edition</div></div>
+        </div>
+        <nav id="menu" style="flex:1;padding-top:10px;"></nav>
+        <div style="padding:20px;border-top:1px solid rgba(255,255,255,0.1);">
+            <div class="menu-item" onclick="logout()">🚪 Logout</div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+        <div class="header flex-between mb-4 no-print">
+            <h1 id="pageTitle" style="font-size:24px;font-weight:700;">Dashboard</h1>
+            <div style="display:flex;gap:10px;">
+                <span id="userDisplay" style="align-self:center;font-size:12px;color:#64748b;"></span>
+            </div>
+        </div>
+        <div id="alertArea"></div>
+        <div id="pageContainer"></div>
+    </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="aptModal">
+    <div class="modal">
+        <div class="flex-between mb-4"><h3>New Appointment</h3><button onclick="closeModal('aptModal')" style="background:none;border:none;font-size:20px;cursor:pointer;">×</button></div>
+        <form onsubmit="saveAppointment(event)">
+            <div class="grid-2">
+                <div>
+                    <label class="text-sm font-bold mb-1 block">Customer (Search Name/Phone) *</label>
+                    <div class="searchable-dropdown">
+                        <input type="text" id="apt_cust_search" class="search-input" placeholder="Type to search..." autocomplete="off" required oninput="searchCustomers(this.value)">
+                        <input type="hidden" id="apt_cust_id">
+                        <div id="apt_cust_results" class="search-results"></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm font-bold mb-1 block">Service *</label>
+                    <select id="apt_svc" class="form-control" required></select>
+                </div>
+            </div>
+            <div class="grid-2 mt-4">
+                <div><label class="text-sm font-bold mb-1 block">Date</label><input type="date" id="apt_date" class="form-control" value="${new Date().toISOString().split('T')[0]}" required></div>
+                <div><label class="text-sm font-bold mb-1 block">Time</label><input type="time" id="apt_time" class="form-control" required></div>
+            </div>
+            <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" class="btn" onclick="closeModal('aptModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-overlay" id="custModal">
+    <div class="modal">
+        <div class="flex-between mb-4"><h3>Add New Customer</h3><button onclick="closeModal('custModal')" style="background:none;border:none;font-size:20px;cursor:pointer;">×</button></div>
+        <form onsubmit="saveCustomer(event)">
+            <div class="grid-2">
+                <div><label class="text-sm font-bold mb-1 block">Name *</label><input type="text" id="c_name" class="form-control" required></div>
+                <div><label class="text-sm font-bold mb-1 block">Phone *</label><input type="text" id="c_phone" class="form-control" required></div>
+            </div>
+            <div class="mt-4"><label class="text-sm font-bold mb-1 block">Area</label><input type="text" id="c_area" class="form-control"></div>
+            <div style="margin-top:20px;display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" class="btn" onclick="closeModal('custModal')">Cancel</button>
+                <button type="submit" class="btn btn-success">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- FIREBASE SDKs & LOGIC -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js";
+
+// --- YOUR FIREBASE CONFIG ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCqTf5VyK61lZ8rrkSSJe4B5HaZxFc0vsc",
+  authDomain: "iconhairbd-1.firebaseapp.com",
+  projectId: "iconhairbd-1",
+  storageBucket: "iconhairbd-1.firebasestorage.app",
+  messagingSenderId: "546467261964",
+  appId: "1:546467261964:web:3a081d582974a91ca38829"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Global State
+let currentUser = null;
+let currentPage = 'dashboard';
+let localData = { customers: [], appointments: [], sales: [], products: [], services: [], settings: { bizName: 'ICON HAIR', bizAddress: 'Uttara, Dhaka', bizPhone: '01852280080' } };
+
+// --- AUTH LOGIC ---
+window.handleLogin = async () => {
+    const email = document.getElementById('loginEmail').value;
+    const pass = document.getElementById('loginPass').value;
+    try {
+        await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error) {
+        document.getElementById('loginError').textContent = "Invalid email or password";
+    }
+};
+
+window.logout = () => signOut(auth);
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        document.getElementById('userDisplay').textContent = user.email;
+        initApp();
+    } else {
+        currentUser = null;
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('mainApp').classList.add('hidden');
+    }
+});
+
+// --- DATA SYNC (REAL-TIME) ---
+function initApp() {
+    buildMenu();
+    navigateTo('dashboard');
+    
+    // Listen to Customers
+    onSnapshot(query(collection(db, "customers"), orderBy("name")), (snap) => {
+        localData.customers = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        if(currentPage === 'customers' || currentPage === 'appointments') renderPage();
+    });
+
+    // Listen to Appointments
+    onSnapshot(query(collection(db, "appointments"), orderBy("date", "desc")), (snap) => {
+        localData.appointments = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        if(currentPage === 'appointments' || currentPage === 'dashboard') renderPage();
+    });
+
+    // Listen to Sales
+    onSnapshot(query(collection(db, "sales"), orderBy("date", "desc")), (snap) => {
+        localData.sales = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        if(currentPage === 'sales' || currentPage === 'invoice' || currentPage === 'dashboard') renderPage();
+    });
+
+    // Listen to Products
+    onSnapshot(collection(db, "products"), (snap) => {
+        localData.products = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        if(currentPage === 'inventory') renderPage();
+    });
+    
+    // Seed Services if empty (Services are static for now)
+    if(localData.services.length === 0) {
+        localData.services = [
+            {id:'s1', name:'Haircut + Styling', price:500, duration:60},
+            {id:'s2', name:'Beard Trim', price:200, duration:30},
+            {id:'s3', name:'Facial Treatment', price:800, duration:60}
+        ];
+    }
+}
+
+// --- NAVIGATION ---
+const PAGES = [
+    {id:'dashboard', icon:'📊', label:'Dashboard'},
+    {id:'appointments', icon:'📅', label:'Appointments'},
+    {id:'sales', icon:'💰', label:'Sales'},
+    {id:'invoice', icon:'🧾', label:'Invoice'},
+    {id:'customers', icon:'👥', label:'Customers'},
+    {id:'inventory', icon:'📦', label:'Inventory'},
+    {id:'settings', icon:'⚙️', label:'Settings'}
+];
+
+window.buildMenu = () => {
+    document.getElementById('menu').innerHTML = PAGES.map(p => 
+        `<div class="menu-item ${currentPage===p.id?'active':''}" onclick="navigateTo('${p.id}')">
+            <span>${p.icon}</span> <span>${p.label}</span>
+        </div>`
+    ).join('');
+};
+
+window.navigateTo = (page) => {
+    currentPage = page;
+    buildMenu();
+    document.getElementById('pageTitle').textContent = PAGES.find(p=>p.id===page)?.label || page;
+    renderPage();
+};
+
+window.renderPage = () => {
+    const c = document.getElementById('pageContainer');
+    c.innerHTML = '';
+    if(currentPage === 'dashboard') renderDashboard(c);
+    else if(currentPage === 'appointments') renderAppointments(c);
+    else if(currentPage === 'sales') renderSales(c);
+    else if(currentPage === 'invoice') renderInvoice(c);
+    else if(currentPage === 'customers') renderCustomers(c);
+    else if(currentPage === 'inventory') renderInventory(c);
+    else if(currentPage === 'settings') renderSettings(c);
+};
+
+// --- MODULES ---
+
+// 1. DASHBOARD
+function renderDashboard(c) {
+    const totalSales = localData.sales.reduce((a,b)=>a+(b.total||0),0);
+    const today = new Date().toISOString().split('T')[0];
+    const todaySales = localData.sales.filter(s=>s.date===today).reduce((a,b)=>a+(b.total||0),0);
+    
+    c.innerHTML = `
+        <div class="grid-2 mb-6">
+            <div class="card"><h3>Total Customers</h3><div style="font-size:32px;font-weight:bold;color:var(--primary)">${localData.customers.length}</div></div>
+            <div class="card"><h3>Today's Sales</h3><div style="font-size:32px;font-weight:bold;color:#10b981">৳${todaySales}</div></div>
+        </div>
+        <div class="card">
+            <h3 class="font-bold mb-4">Recent Activity</h3>
+            <p style="color:#64748b;">System is connected to Firebase Cloud. Real-time sync active.</p>
+        </div>
+    `;
+}
+
+// 2. APPOINTMENTS
+function renderAppointments(c) {
+    c.innerHTML = `
+        <div class="card">
+            <div class="flex-between mb-4">
+                <h3>New Appointment</h3>
+            </div>
+            <form onsubmit="saveAppointment(event)">
+                <div class="grid-2">
+                    <div>
+                        <label class="text-sm font-bold">Customer (Search Name/Phone) *</label>
+                        <div class="searchable-dropdown">
+                            <input type="text" id="apt_cust_search" class="search-input" placeholder="Type to search..." autocomplete="off" required oninput="searchCustomers(this.value)">
+                            <input type="hidden" id="apt_cust_id">
+                            <div id="apt_cust_results" class="search-results"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-sm font-bold">Service *</label>
+                        <select id="apt_svc" class="form-control" required>
+                            ${localData.services.map(x => `<option value="${x.id}">${x.name} (${x.duration}min)</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-2 mt-4">
+                    <div><label class="text-sm font-bold">Date</label><input type="date" id="apt_date" class="form-control" value="${new Date().toISOString().split('T')[0]}" required></div>
+                    <div><label class="text-sm font-bold">Time</label><input type="time" id="apt_time" class="form-control" required></div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-4 w-full">Save Appointment</button>
+            </form>
+        </div>
+        
+        <div class="card mt-4">
+            <h3>Upcoming Appointments</h3>
+            <table style="width:100%; margin-top:15px; border-collapse:collapse;">
+                <thead><tr style="border-bottom:1px solid #eee; text-align:left;"><th>Date</th><th>Time</th><th>Customer</th><th>Service</th></tr></thead>
+                <tbody>
+                    ${localData.appointments.map(a => {
+                        const cust = localData.customers.find(x=>x.id==a.custId);
+                        const svc = localData.services.find(s=>s.id==a.svcId);
+                        return `<tr style="border-bottom:1px solid #f1f5f9;"><td>${a.date}</td><td>${a.time}</td><td>${cust?.name||'Unknown'}</td><td>${svc?.name||'Unknown'}</td></tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.searchCustomers = (query) => {
+    const resultsDiv = document.getElementById('apt_cust_results');
+    if(!query) { resultsDiv.style.display='none'; return; }
+    const matches = localData.customers.filter(c => 
+        c.name.toLowerCase().includes(query.toLowerCase()) || 
+        c.phone.includes(query)
+    );
+    if(matches.length > 0) {
+        resultsDiv.innerHTML = matches.map(c => 
+            `<div class="search-item" onclick="selectCustomer('${c.id}', '${c.name}', '${c.phone}')">
+                <span>${c.name}</span> <span style="color:#64748b;font-size:12px">${c.phone}</span>
+            </div>`
+        ).join('');
+        resultsDiv.style.display = 'block';
+    } else {
+        resultsDiv.innerHTML = `<div class="search-item" style="color:#ef4444;cursor:default">No customer found. <button type="button" class="btn btn-sm btn-success ml-2" onclick="openQuickAdd('${query}')">+ Add New</button></div>`;
+        resultsDiv.style.display = 'block';
+    }
+};
+
+window.selectCustomer = (id, name, phone) => {
+    document.getElementById('apt_cust_id').value = id;
+    document.getElementById('apt_cust_search').value = `${name} (${phone})`;
+    document.getElementById('apt_cust_results').style.display = 'none';
+};
+
+window.openQuickAdd = (query) => {
+    closeModal('aptModal');
+    openModal('custModal');
+    if(query.includes(' ')) {
+        const parts = query.split(' ');
+        document.getElementById('c_name').value = parts[0];
+        document.getElementById('c_phone').value = parts[1] || '';
+    } else {
+        document.getElementById('c_name').value = query;
+    }
+};
+
+window.saveCustomer = async (e) => {
+    e.preventDefault();
+    const newCust = { 
+        name: document.getElementById('c_name').value, 
+        phone: document.getElementById('c_phone').value, 
+        area: document.getElementById('c_area').value,
+        createdAt: new Date().toISOString()
+    };
+    await addDoc(collection(db, "customers"), newCust);
+    closeModal('custModal');
+    showAlert('Customer added to cloud!');
+    // If we came from appointment modal, reopen it
+    if(document.getElementById('apt_cust_search').value) {
+        setTimeout(() => {
+            openModal('aptModal');
+            // Auto select logic would go here
+        }, 500);
+    }
+};
+
+window.saveAppointment = async (e) => {
+    e.preventDefault();
+    const custId = document.getElementById('apt_cust_id').value;
+    if(!custId) { alert('Please select a valid customer.'); return; }
+    
+    await addDoc(collection(db, "appointments"), {
+        custId: custId,
+        svcId: document.getElementById('apt_svc').value,
+        date: document.getElementById('apt_date').value,
+        time: document.getElementById('apt_time').value,
+        createdAt: new Date().toISOString()
+    });
+    closeModal('aptModal');
+    showAlert('Appointment saved to cloud!');
+    document.getElementById('apt_cust_search').value = '';
+    document.getElementById('apt_cust_id').value = '';
+};
+
+// 3. SALES
+function renderSales(c) {
+    c.innerHTML = `
+        <div class="card">
+            <div class="flex-between mb-4">
+                <h3>Sales History</h3>
+                <button class="btn btn-primary" onclick="openSaleModal()">➕ New Sale</button>
+            </div>
+            <table>
+                <thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Total</th><th>Payment</th></tr></thead>
+                <tbody>
+                    ${localData.sales.map(s => {
+                        const cust = localData.customers.find(x=>x.id==s.custId);
+                        return `<tr><td>${s.date}</td><td>${s.invNo}</td><td>${cust?.name||'Walk-in'}</td><td>৳${s.total}</td><td>${s.payment}</td></tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.openSaleModal = async () => {
+    const custId = prompt("Enter Customer ID (or leave blank for walk-in):");
+    const amount = prompt("Enter Total Amount:");
+    if(amount) {
+        await addDoc(collection(db, "sales"), {
+            date: new Date().toISOString().split('T')[0], 
+            invNo: `INV-${Date.now().toString().slice(-6)}`, 
+            custId: custId || null, 
+            total: parseFloat(amount), 
+            payment: 'Cash',
+            createdAt: new Date().toISOString()
+        });
+        showAlert('Sale Recorded in Cloud!');
+    }
+};
+
+// 4. INVOICE
+function renderInvoice(c) {
+    const invs = localData.sales.slice().reverse();
+    c.innerHTML = `
+        <div class="card no-print">
+            <label>Select Invoice:</label>
+            <select id="inv_select" class="form-control mt-2" onchange="previewInvoice(this.value)">
+                <option value="">-- Choose --</option>
+                ${invs.map(s => `<option value="${s.id}">${s.invNo} - ৳${s.total}</option>`).join('')}
+            </select>
+        </div>
+        <div id="inv_preview"></div>
+    `;
+}
+
+window.previewInvoice = (id) => {
+    if(!id) return;
+    const s = localData.sales.find(x=>x.id==id);
+    const cust = localData.customers.find(x=>x.id==s.custId);
+    document.getElementById('inv_preview').innerHTML = `
+        <div class="card invoice-box" style="max-width:800px;margin:0 auto;background:white;color:black;">
+            <div style="display:flex;justify-content:space-between;border-bottom:2px solid var(--primary);padding-bottom:20px;margin-bottom:20px;">
+                <div><h1 style="color:var(--primary);margin:0;">${localData.settings.bizName}</h1><p>${localData.settings.bizAddress}<br>${localData.settings.bizPhone}</p></div>
+                <div style="text-align:right;"><h2>INVOICE</h2><p>#${s.invNo}<br>Date: ${s.date}</p></div>
+            </div>
+            <div style="margin-bottom:30px;"><strong>BILL TO:</strong><br>${cust?.name || 'Walk-in Customer'}<br>${cust?.phone || ''}</div>
+            <table style="width:100%;margin-bottom:30px;">
+                <thead style="background:#f1f5f9;"><tr><th>Description</th><th style="text-align:right;">Amount</th></tr></thead>
+                <tbody><tr><td>Service / Product Sale</td><td style="text-align:right;">৳${s.total}</td></tr></tbody>
+            </table>
+            <div style="text-align:right;font-size:20px;font-weight:bold;border-top:2px solid #333;padding-top:10px;">TOTAL: ৳${s.total}</div>
+            <div class="no-print" style="margin-top:30px;text-align:center;"><button class="btn btn-primary" onclick="window.print()">🖨️ Print Invoice</button></div>
+        </div>
+    `;
+};
+
+// 5. CUSTOMERS
+function renderCustomers(c) {
+    c.innerHTML = `
+        <div class="card">
+            <div class="flex-between mb-4">
+                <h3>All Customers (${localData.customers.length})</h3>
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="cust_search" class="form-control" placeholder="Search..." oninput="filterCustomers()" style="width:250px;">
+                    <button class="btn btn-success" onclick="openModal('custModal')">➕ Add</button>
+                </div>
+            </div>
+            <table>
+                <thead><tr><th>Name</th><th>Phone</th><th>Area</th><th>Actions</th></tr></thead>
+                <tbody id="cust_table_body">
+                    ${localData.customers.map(cu => `<tr><td>${cu.name}</td><td>${cu.phone}</td><td>${cu.area||'-'}</td><td><button class="btn btn-sm btn-danger" onclick="deleteCustomer('${cu.id}')">Delete</button></td></tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.filterCustomers = () => {
+    const q = document.getElementById('cust_search').value.toLowerCase();
+    const rows = document.querySelectorAll('#cust_table_body tr');
+    rows.forEach(r => {
+        const txt = r.innerText.toLowerCase();
+        r.style.display = txt.includes(q) ? '' : 'none';
+    });
+};
+
+window.deleteCustomer = async (id) => {
+    if(confirm('Delete this customer from cloud?')) {
+        await deleteDoc(doc(db, "customers", id));
+        showAlert('Deleted from cloud!');
+    }
+};
+
+// 6. INVENTORY
+function renderInventory(c) {
+    c.innerHTML = `
+        <div class="card">
+            <div class="flex-between mb-4">
+                <h3>Product Inventory</h3>
+                <button class="btn btn-primary" onclick="addProduct()">➕ Add Product</button>
+            </div>
+            <table>
+                <thead><tr><th>Product Name</th><th>Price</th><th>Stock</th><th>Status</th></tr></thead>
+                <tbody>
+                    ${localData.products.map(p => {
+                        let status = p.stock > 5 ? '<span style="color:#10b981;font-weight:bold">In Stock</span>' : '<span style="color:#ef4444;font-weight:bold">Low Stock</span>';
+                        return `<tr><td>${p.name}</td><td>৳${p.price}</td><td>${p.stock}</td><td>${status}</td></tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+window.addProduct = async () => {
+    const name = prompt("Product Name:");
+    const price = prompt("Price:");
+    const stock = prompt("Initial Stock:");
+    if(name && price) {
+        await addDoc(collection(db, "products"), {name, price:parseFloat(price), stock:parseInt(stock)||0});
+        showAlert('Product added to cloud!');
+    }
+};
+
+// 7. SETTINGS
+function renderSettings(c) {
+    c.innerHTML = `
+        <div class="card">
+            <h3 class="font-bold text-lg mb-4">System Settings (Local Only)</h3>
+            <div class="grid-2">
+                <div><label>Business Name</label><input type="text" class="form-control mt-1" value="${localData.settings.bizName}" onchange="localData.settings.bizName=this.value"></div>
+                <div><label>Phone</label><input type="text" class="form-control mt-1" value="${localData.settings.bizPhone}" onchange="localData.settings.bizPhone=this.value"></div>
+            </div>
+            <div class="mt-6 pt-6 border-t">
+                <h4 class="text-red-500 font-bold mb-2">Danger Zone</h4>
+                <p class="text-sm text-gray-500 mb-4">This will clear your local view but data remains in Firebase.</p>
+                <button class="btn btn-danger" onclick="location.reload()">🔄 Refresh App</button>
+            </div>
+        </div>
+    `;
+}
+
+// --- UTILS ---
+window.openModal = (id) => document.getElementById(id).classList.add('active');
+window.closeModal = (id) => document.getElementById(id).classList.remove('active');
+window.showAlert = (msg) => { 
+    const d = document.createElement('div'); 
+    d.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:8px;z-index:200;'; 
+    d.textContent = msg; 
+    document.body.appendChild(d); 
+    setTimeout(()=>d.remove(), 3000); 
+};
+</script>
+</body>
+</html>
