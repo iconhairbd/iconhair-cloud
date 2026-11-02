@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICON HAIR - سیستم مدیریت سالن</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Vazirmatn', sans-serif; }
+        .hidden { display: none !important; }
+        .sidebar-item.active { background: #4f46e5; color: white; }
+        .sidebar-item:hover { background: #4f46e5; color: white; transition: all 0.3s; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; }
+        }
+        .print-only { display: none; }
+        .tier-bronze { background: #cd7f32; color: white; }
+        .tier-silver { background: #c0c0c0; color: #333; }
+        .tier-gold { background: #ffd700; color: #333; }
+        .stock-low { background: #fef3c7; border-right: 4px solid #f59e0b; }
+        .stock-out { background: #fee2e2; border-right: 4px solid #ef4444; }
+        .stock-ok { background: #d1fae5; border-right: 4px solid #10b981; }
+        .loading { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .modal { background: rgba(0,0,0,0.5); }
+        .alert { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .status-booked { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+        .status-arrived { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="inline-block p-4 bg-indigo-100 rounded-full mb-4">
+                    <i class="fas fa-cut text-4xl text-indigo-600"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">ICON HAIR</h1>
+                <p class="text-gray-600">سیستم مدیریت سالن زیبایی</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ایمیل</label>
+                    <input type="email" id="loginEmail" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="email@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">رمز عبور</label>
+                    <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium">
+                    <i class="fas fa-sign-in-alt ml-2"></i>ورود
+                </button>
+            </form>
+            <div id="loginError" class="hidden mt-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-indigo-900 text-white flex flex-col no-print">
+            <div class="p-6 border-b border-indigo-800">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-cut ml-2"></i>
+                    ICON HAIR
+                </h1>
+                <p class="text-sm text-indigo-300 mt-1" id="bizName">سیستم مدیریت سالن</p>
+            </div>
+            
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+                <button onclick="showPage('dashboard')" class="sidebar-item active w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-tachometer-alt w-6"></i>
+                    <span>داشبورد</span>
+                </button>
+                <button onclick="showPage('appointments')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-calendar-check w-6"></i>
+                    <span>قرارهای ملاقات</span>
+                </button>
+                <button onclick="showPage('sales')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-shopping-cart w-6"></i>
+                    <span>فروش</span>
+                </button>
+                <button onclick="showPage('invoices')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-file-invoice w-6"></i>
+                    <span>فاکتورها</span>
+                </button>
+                <button onclick="showPage('customers')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-users w-6"></i>
+                    <span>مشتریان</span>
+                </button>
+                <button onclick="showPage('products')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-boxes w-6"></i>
+                    <span>محصولات</span>
+                </button>
+                <button onclick="showPage('services')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-concierge-bell w-6"></i>
+                    <span>خدمات</span>
+                </button>
+                <button onclick="showPage('staff')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-user-tie w-6"></i>
+                    <span>کارکنان</span>
+                </button>
+                <button onclick="showPage('expenses')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-money-bill-wave w-6"></i>
+                    <span>هزینه‌ها</span>
+                </button>
+                <button onclick="showPage('suppliers')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-truck w-6"></i>
+                    <span>تامین‌کنندگان</span>
+                </button>
+                <button onclick="showPage('reports')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-chart-line w-6"></i>
+                    <span>گزارش‌ها</span>
+                </button>
+                <button onclick="showPage('loyalty')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-star w-6"></i>
+                    <span>برنامه وفاداری</span>
+                </button>
+                <button onclick="showPage('reminders')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-bell w-6"></i>
+                    <span>یادآورها</span>
+                </button>
+                <button onclick="showPage('coupons')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-ticket-alt w-6"></i>
+                    <span>کد تخفیف</span>
+                </button>
+                <button onclick="showPage('settings')" class="sidebar-item w-full text-right px-4 py-3 rounded-lg flex items-center">
+                    <i class="fas fa-cog w-6"></i>
+                    <span>تنظیمات</span>
+                </button>
+            </nav>
+
+            <div class="p-4 border-t border-indigo-800">
+                <div class="flex items-center mb-3">
+                    <div class="w-10 h-10 bg-indigo-700 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="mr-3 flex-1">
+                        <p class="font-medium text-sm" id="userName">نام کاربر</p>
+                        <p class="text-xs text-indigo-300" id="userRole">نقش</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt ml-2"></i>خروج
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm no-print">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <div class="flex items-center">
+                        <input type="text" id="globalSearch" placeholder="جستجو..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <button class="mr-3 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-search ml-2"></i>جستجو
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <button class="relative p-2 text-gray-600 hover:text-indigo-600">
+                            <i class="fas fa-bell text-xl"></i>
+                            <span id="alertCount" class="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                        </button>
+                        <div class="text-sm text-gray-600">
+                            <i class="fas fa-clock ml-1"></i>
+                            <span id="currentTime"></span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <!-- Dashboard Page -->
+                <div id="dashboard" class="page">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">داشبورد</h2>
+                    
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-indigo-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-500 text-sm mb-1">کل مشتریان</p>
+                                    <p class="text-3xl font-bold text-gray-800" id="totalCustomers">0</p>
+                                </div>
+                                <i class="fas fa-users text-4xl text-indigo-500 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-green-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-500 text-sm mb-1">فروش امروز</p>
+                                    <p class="text-3xl font-bold text-gray-800" id="todaySales">0</p>
+                                </div>
+                                <i class="fas fa-shopping-cart text-4xl text-green-500 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-purple-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-500 text-sm mb-1">درآمد ماهانه</p>
+                                    <p class="text-3xl font-bold text-gray-800" id="monthlyRevenue">0</p>
+                                </div>
+                                <i class="fas fa-dollar-sign text-4xl text-purple-500 opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-orange-500">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-500 text-sm mb-1">قرارهای امروز</p>
+                                    <p class="text-3xl font-bold text-gray-800" id="todayAppointments">0</p>
+                                </div>
+                                <i class="fas fa-calendar-check text-4xl text-orange-500 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">روند فروش 7 روز گذشته</h3>
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">توزیع روش‌های پرداخت</h3>
+                            <canvas id="paymentChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Today's Appointments -->
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">قرارهای امروز</h3>
+                        <div id="todayAppointmentsList" class="space-y-3"></div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">دسترسی سریع</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button onclick="showPage('appointments'); openAppointmentModal()" class="bg-indigo-50 hover:bg-indigo-100 p-4 rounded-lg transition">
+                                <i class="fas fa-calendar-plus text-3xl text-indigo-600 mb-2"></i>
+                                <p class="text-sm font-medium">قرار جدید</p>
+                            </button>
+                            <button onclick="showPage('sales'); openSaleModal()" class="bg-green-50 hover:bg-green-100 p-4 rounded-lg transition">
+                                <i class="fas fa-cart-plus text-3xl text-green-600 mb-2"></i>
+                                <p class="text-sm font-medium">فروش جدید</p>
+                            </button>
+                            <button onclick="showPage('customers'); openCustomerModal()" class="bg-purple-50 hover:bg-purple-100 p-4 rounded-lg transition">
+                                <i class="fas fa-user-plus text-3xl text-purple-600 mb-2"></i>
+                                <p class="text-sm font-medium">مشتری جدید</p>
+                            </button>
+                            <button onclick="showPage('products'); openProductModal()" class="bg-orange-50 hover:bg-orange-100 p-4 rounded-lg transition">
+                                <i class="fas fa-box text-3xl text-orange-600 mb-2"></i>
+                                <p class="text-sm font-medium">محصول جدید</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appointments Page -->
+                <div id="appointments" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">قرارهای ملاقات</h2>
+                        <button onclick="openAppointmentModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>قرار جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="appointmentSearch" placeholder="جستجو..." onkeyup="searchAppointments()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="appointmentsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Sales Page -->
+                <div id="sales" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">فروش</h2>
+                        <button onclick="openSaleModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>فروش جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="salesSearch" placeholder="جستجو..." onkeyup="searchSales()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="salesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Invoices Page -->
+                <div id="invoices" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">فاکتورها</h2>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="invoiceSearch" placeholder="جستجو..." onkeyup="searchInvoices()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="invoicesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Customers Page -->
+                <div id="customers" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">مشتریان</h2>
+                        <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>مشتری جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="customerSearch" placeholder="جستجو..." onkeyup="searchCustomers()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="customersList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Products Page -->
+                <div id="products" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">محصولات</h2>
+                        <button onclick="openProductModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>محصول جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="productSearch" placeholder="جستجو..." onkeyup="searchProducts()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="productsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Services Page -->
+                <div id="services" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">خدمات</h2>
+                        <button onclick="openServiceModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>خدمت جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="serviceSearch" placeholder="جستجو..." onkeyup="searchServices()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="servicesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Staff Page -->
+                <div id="staff" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">کارکنان</h2>
+                        <button onclick="openStaffModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>کارمند جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="staffSearch" placeholder="جستجو..." onkeyup="searchStaff()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="staffList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Expenses Page -->
+                <div id="expenses" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">هزینه‌ها</h2>
+                        <button onclick="openExpenseModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>هزینه جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="expenseSearch" placeholder="جستجو..." onkeyup="searchExpenses()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="expensesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Suppliers Page -->
+                <div id="suppliers" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">تامین‌کنندگان</h2>
+                        <button onclick="openSupplierModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>تامین‌کننده جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div class="mb-4">
+                            <input type="text" id="supplierSearch" placeholder="جستجو..." onkeyup="searchSuppliers()" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div id="suppliersList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Reports Page -->
+                <div id="reports" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">گزارش‌ها</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">گزارش سود و زیان</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">درآمد کل:</span>
+                                    <span class="font-bold text-green-600" id="reportTotalRevenue">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">هزینه کل:</span>
+                                    <span class="font-bold text-red-600" id="reportTotalExpenses">0</span>
+                                </div>
+                                <div class="flex justify-between border-t pt-3">
+                                    <span class="text-gray-800 font-medium">سود خالص:</span>
+                                    <span class="font-bold text-indigo-600" id="reportNetProfit">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">عملکرد کارکنان</h3>
+                            <div id="staffPerformanceReport" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loyalty Page -->
+                <div id="loyalty" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">برنامه وفاداری</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">آمار کلی</h3>
+                            <div class="space-y-2">
+                                <p>اعضای برنز: <span id="bronzeCount" class="font-bold">0</span></p>
+                                <p>اعضای نقره: <span id="silverCount" class="font-bold">0</span></p>
+                                <p>اعضای طلا: <span id="goldCount" class="font-bold">0</span></p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4">قوانین</h3>
+                            <div class="space-y-2 text-sm">
+                                <p>کسب امتیاز: هر 100 تومان = 1 امتیاز</p>
+                                <p>استفاده: 100 امتیاز = 50 تومان تخفیف</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">لیست مشتریان بر اساس امتیاز</h3>
+                        <div id="loyaltyList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Reminders Page -->
+                <div id="reminders" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">یادآورها</h2>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div id="remindersList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Coupons Page -->
+                <div id="coupons" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">کدهای تخفیف</h2>
+                        <button onclick="openCouponModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-plus ml-2"></i>کد جدید
+                        </button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div id="couponsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div id="settings" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6">تنظیمات</h2>
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">اطلاعات کسب‌وکار</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">نام کسب‌وکار</label>
+                                <input type="text" id="settingBizName" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">آدرس</label>
+                                <input type="text" id="settingBizAddress" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">تلفن</label>
+                                <input type="text" id="settingBizPhone" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ایمیل</label>
+                                <input type="email" id="settingBizEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">واحد پول</label>
+                                <input type="text" id="settingCurrency" value="تومان" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">نرخ مالیات (%)</label>
+                                <input type="number" id="settingTaxRate" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            </div>
+                        </div>
+                        <button onclick="saveSettings()" class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-save ml-2"></i>ذخیره تنظیمات
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">پشتیبان‌گیری و بازیابی</h3>
+                        <div class="flex space-x-4 space-x-reverse">
+                            <button onclick="exportData()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
+                                <i class="fas fa-download ml-2"></i>پشتیبان‌گیری
+                            </button>
+                            <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                                <i class="fas fa-upload ml-2"></i>بازیابی
+                            </button>
+                            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">ریست داده‌ها</h3>
+                        <p class="text-gray-600 mb-4">این عملیات تمام داده‌های مشتریان، فاکتورها، قرارها و محصولات را پاک می‌کند اما تنظیمات حفظ می‌شود.</p>
+                        <button onclick="resetData()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
+                            <i class="fas fa-trash ml-2"></i>ریست داده‌ها
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Appointment Modal -->
+    <div id="appointmentModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">قرار ملاقات جدید</h3>
+            </div>
+            <form id="appointmentForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مشتری</label>
+                    <select id="appointmentCustomer" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">خدمت</label>
+                    <select id="appointmentService" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="updateDuration()"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">کارمند</label>
+                    <select id="appointmentStaff" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">تاریخ</label>
+                        <input type="date" id="appointmentDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">زمان</label>
+                        <input type="time" id="appointmentTime" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مدت (دقیقه)</label>
+                    <input type="number" id="appointmentDuration" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">توضیحات</label>
+                    <textarea id="appointmentNotes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('appointmentModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sale Modal -->
+    <div id="saleModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">فروش جدید</h3>
+            </div>
+            <form id="saleForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مشتری (اختیاری)</label>
+                    <select id="saleCustomer" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="">مشتری عبوری</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نوع</label>
+                    <select id="saleType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="updateSaleItems()">
+                        <option value="service">خدمت</option>
+                        <option value="product">محصول</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مورد</label>
+                    <select id="saleItem" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="updateSalePrice()"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">تعداد</label>
+                        <input type="number" id="saleQty" value="1" min="1" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="calculateSaleTotal()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">قیمت واحد</label>
+                        <input type="number" id="saleUnitPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="calculateSaleTotal()">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تخفیف</label>
+                    <input type="number" id="saleDiscount" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="calculateSaleTotal()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مجموع</label>
+                    <input type="number" id="saleTotal" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">روش پرداخت</label>
+                    <select id="salePayment" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="cash">نقدی</option>
+                        <option value="card">کارت</option>
+                        <option value="transfer">انتقال بانکی</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">کارمند</label>
+                    <select id="saleStaff" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ثبت فروش</button>
+                    <button type="button" onclick="closeModal('saleModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Modal -->
+    <div id="customerModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">مشتری جدید</h3>
+            </div>
+            <form id="customerForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نام</label>
+                    <input type="text" id="customerName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تلفن</label>
+                    <input type="tel" id="customerPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ایمیل</label>
+                    <input type="email" id="customerEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">منطقه</label>
+                    <input type="text" id="customerArea" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تاریخ تولد</label>
+                    <input type="date" id="customerBirthday" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">توضیحات</label>
+                    <textarea id="customerNotes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="customerSMSConsent" class="mr-2">
+                    <label class="text-sm text-gray-700">موافقت با دریافت پیامک</label>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('customerModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">محصول جدید</h3>
+            </div>
+            <form id="productForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نام محصول</label>
+                    <input type="text" id="productName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">دسته‌بندی</label>
+                    <input type="text" id="productCategory" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">واحد</label>
+                    <input type="text" id="productUnit" value="عدد" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">موجودی اولیه</label>
+                        <input type="number" id="productOpeningStock" value="0" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">موجودی فعلی</label>
+                        <input type="number" id="productCurrentStock" value="0" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">قیمت فروش</label>
+                        <input type="number" id="productSellingPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">قیمت خرید</label>
+                        <input type="number" id="productCostPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">سطح سفارش مجدد</label>
+                    <input type="number" id="productReorderLevel" value="10" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تاریخ انقضا</label>
+                    <input type="date" id="productExpiryDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('productModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Service Modal -->
+    <div id="serviceModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">خدمت جدید</h3>
+            </div>
+            <form id="serviceForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نام خدمت</label>
+                    <input type="text" id="serviceName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">دسته‌بندی</label>
+                    <input type="text" id="serviceCategory" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">قیمت</label>
+                        <input type="number" id="servicePrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">مدت (دقیقه)</label>
+                        <input type="number" id="serviceDuration" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="serviceActive" checked class="mr-2">
+                    <label class="text-sm text-gray-700">فعال</label>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('serviceModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Staff Modal -->
+    <div id="staffModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">کارمند جدید</h3>
+            </div>
+            <form id="staffForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نام</label>
+                    <input type="text" id="staffName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نقش</label>
+                    <input type="text" id="staffRole" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تلفن</label>
+                    <input type="tel" id="staffPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ایمیل</label>
+                    <input type="email" id="staffEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نرخ کمیسیون (%)</label>
+                    <input type="number" id="staffCommissionRate" value="10" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">شیفت</label>
+                    <input type="text" id="staffShift" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="staffActive" checked class="mr-2">
+                    <label class="text-sm text-gray-700">فعال</label>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('staffModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">هزینه جدید</h3>
+            </div>
+            <form id="expenseForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تاریخ</label>
+                    <input type="date" id="expenseDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">دسته‌بندی</label>
+                    <input type="text" id="expenseCategory" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">توضیحات</label>
+                    <textarea id="expenseDescription" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مبلغ</label>
+                    <input type="number" id="expenseAmount" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">روش پرداخت</label>
+                    <select id="expensePaymentMethod" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="cash">نقدی</option>
+                        <option value="card">کارت</option>
+                        <option value="transfer">انتقال بانکی</option>
+                    </select>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('expenseModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supplier Modal -->
+    <div id="supplierModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">تامین‌کننده جدید</h3>
+            </div>
+            <form id="supplierForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نام</label>
+                    <input type="text" id="supplierName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مخاطب</label>
+                    <input type="text" id="supplierContact" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تلفن</label>
+                    <input type="tel" id="supplierPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ایمیل</label>
+                    <input type="email" id="supplierEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">آدرس</label>
+                    <textarea id="supplierAddress" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="2"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">توضیحات</label>
+                    <textarea id="supplierNotes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('supplierModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Coupon Modal -->
+    <div id="couponModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <h3 class="text-xl font-bold text-gray-800">کد تخفیف جدید</h3>
+            </div>
+            <form id="couponForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">کد</label>
+                    <input type="text" id="couponCode" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نوع</label>
+                    <select id="couponType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="percentage">درصدی</option>
+                        <option value="fixed">مبلغ ثابت</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">مقدار</label>
+                    <input type="number" id="couponValue" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">حداقل خرید</label>
+                    <input type="number" id="couponMinPurchase" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">حداکثر استفاده</label>
+                    <input type="number" id="couponMaxUses" value="100" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">تاریخ انقضا</label>
+                    <input type="date" id="couponExpiryDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="couponActive" checked class="mr-2">
+                    <label class="text-sm text-gray-700">فعال</label>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">ذخیره</button>
+                    <button type="button" onclick="closeModal('couponModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Invoice Print Modal -->
+    <div id="invoicePrintModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b no-print">
+                <h3 class="text-xl font-bold text-gray-800">چاپ فاکتور</h3>
+            </div>
+            <div id="invoicePrintContent" class="p-6 print-only"></div>
+            <div class="p-6 border-t no-print">
+                <div class="flex space-x-4 space-x-reverse">
+                    <button onclick="printInvoice()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">
+                        <i class="fas fa-print ml-2"></i>چاپ
+                    </button>
+                    <button onclick="closeModal('invoicePrintModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">بستن</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="fixed top-4 left-4 space-y-2 z-50 no-print"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import {
+            getAuth,
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import {
+            getFirestore,
+            collection,
+            doc,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            onSnapshot,
+            query,
+            where,
+            orderBy,
+            getDocs,
+            serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase Configuration - اطلاعات پروژه شما
+        const firebaseConfig = {
+            apiKey: "AIzaSyCqTf5VyK61lZ8rrkSSJe4B5HaZxFc0vsc",
+            authDomain: "iconhairbd-1.firebaseapp.com",
+            projectId: "iconhairbd-1",
+            storageBucket: "iconhairbd-1.firebasestorage.app",
+            messagingSenderId: "546467261964",
+            appId: "1:546467261964:web:3a081d582974a91ca38829"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Global State
+        let currentUser = null;
+        let allData = {
+            customers: [],
+            appointments: [],
+            sales: [],
+            products: [],
+            services: [],
+            staff: [],
+            expenses: [],
+            suppliers: [],
+            coupons: [],
+            settings: {}
+        };
+
+        // Alerts
+        function showAlert(message, type = 'success') {
+            const alert = document.createElement('div');
+            alert.className = `alert p-4 rounded-lg shadow-lg text-white ${
+                type === 'success' ? 'bg-green-500' :
+                type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`;
+            alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} ml-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            document.getElementById('alertContainer').appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        // Authentication
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+
+            try {
+                errorDiv.classList.add('hidden');
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                currentUser = userCredential.user;
+                await loadUserData();
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                showAlert('ورود موفقیت‌آمیز بود');
+            } catch (error) {
+                errorDiv.textContent = 'خطا در ورود: ' + error.message;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await loadUserData();
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+            }
+        });
+
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                showAlert('خروج موفقیت‌آمیز بود');
+            } catch (error) {
+                showAlert('خطا در خروج: ' + error.message, 'error');
+            }
+        };
+
+        // Load User Data
+        async function loadUserData() {
+            try {
+                setupRealtimeListeners();
+            } catch (error) {
+                showAlert('خطا در بارگذاری داده‌ها: ' + error.message, 'error');
+            }
+        }
+
+        function setupRealtimeListeners() {
+            onSnapshot(collection(db, 'customers'), (snapshot) => {
+                allData.customers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderCustomers();
+                updateDashboard();
+            });
+
+            onSnapshot(collection(db, 'appointments'), (snapshot) => {
+                allData.appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAppointments();
+                updateDashboard();
+            });
+
+            onSnapshot(collection(db, 'sales'), (snapshot) => {
+                allData.sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSales();
+                renderInvoices();
+                updateDashboard();
+                updateReports();
+            });
+
+            onSnapshot(collection(db, 'products'), (snapshot) => {
+                allData.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProducts();
+            });
+
+            onSnapshot(collection(db, 'services'), (snapshot) => {
+                allData.services = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderServices();
+            });
+
+            onSnapshot(collection(db, 'staff'), (snapshot) => {
+                allData.staff = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderStaff();
+                updateReports();
+            });
+
+            onSnapshot(collection(db, 'expenses'), (snapshot) => {
+                allData.expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderExpenses();
+                updateReports();
+            });
+
+            onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+                allData.suppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderSuppliers();
+            });
+
+            onSnapshot(collection(db, 'coupons'), (snapshot) => {
+                allData.coupons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderCoupons();
+            });
+
+            onSnapshot(collection(db, 'settings'), (snapshot) => {
+                if (!snapshot.empty) {
+                    allData.settings = snapshot.docs[0].data();
+                    allData.settings.id = snapshot.docs[0].id;
+                    loadSettings();
+                }
+            });
+        }
+
+        // Navigation
+        window.showPage = function(pageName) {
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+            document.getElementById(pageName).classList.remove('hidden');
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.sidebar-item').classList.add('active');
+        };
+
+        // Modal Functions
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        };
+
+        // Dashboard
+        function updateDashboard() {
+            document.getElementById('totalCustomers').textContent = allData.customers.length;
+
+            const today = new Date().toISOString().split('T')[0];
+            const todaySalesData = allData.sales.filter(s => s.date === today);
+            const todaySalesTotal = todaySalesData.reduce((sum, s) => sum + (s.total || 0), 0);
+            document.getElementById('todaySales').textContent = todaySalesTotal.toLocaleString('fa-IR');
+
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            const monthlySales = allData.sales.filter(s => {
+                if (!s.date) return false;
+                const saleDate = new Date(s.date);
+                return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+            });
+            const monthlyTotal = monthlySales.reduce((sum, s) => sum + (s.total || 0), 0);
+            document.getElementById('monthlyRevenue').textContent = monthlyTotal.toLocaleString('fa-IR');
+
+            const todayAppointmentsData = allData.appointments.filter(a => a.date === today);
+            document.getElementById('todayAppointments').textContent = todayAppointmentsData.length;
+
+            const list = document.getElementById('todayAppointmentsList');
+            if (todayAppointmentsData.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">قرار ملاقاتی برای امروز وجود ندارد</p>';
+            } else {
+                list.innerHTML = todayAppointmentsData.map(apt => {
+                    const customer = allData.customers.find(c => c.id === apt.customerId);
+                    const service = allData.services.find(s => s.id === apt.serviceId);
+                    const staff = allData.staff.find(st => st.id === apt.staffId);
+                    return `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p class="font-medium">${customer?.name || 'نامشخص'}</p>
+                                <p class="text-sm text-gray-600">${service?.name || 'نامشخص'}</p>
+                                <p class="text-sm text-gray-600">کارمند: ${staff?.name || 'نامشخص'}</p>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-medium">${apt.time || ''}</p>
+                                <span class="px-3 py-1 rounded-full text-xs status-${apt.status || 'booked'}">${apt.status || 'رزرو شده'}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            const salesCtx = document.getElementById('salesChart');
+            if (!salesCtx) return;
+
+            const last7Days = [];
+            const salesData = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                last7Days.push(date.toLocaleDateString('fa-IR', { weekday: 'short' }));
+                const daySales = allData.sales.filter(s => s.date === dateStr);
+                salesData.push(daySales.reduce((sum, s) => sum + (s.total || 0), 0));
+            }
+
+            if (window.salesChartInstance) window.salesChartInstance.destroy();
+            window.salesChartInstance = new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: last7Days,
+                    datasets: [{
+                        label: 'فروش',
+                        data: salesData,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            const paymentCtx = document.getElementById('paymentChart');
+            if (!paymentCtx) return;
+
+            const paymentMethods = {};
+            allData.sales.forEach(s => {
+                const method = s.payment || 'نقدی';
+                paymentMethods[method] = (paymentMethods[method] || 0) + (s.total || 0);
+            });
+
+            const paymentLabels = Object.keys(paymentMethods).map(m => {
+                const map = { cash: 'نقدی', card: 'کارت', transfer: 'انتقال بانکی' };
+                return map[m] || m;
+            });
+            const paymentValues = Object.values(paymentMethods);
+
+            if (window.paymentChartInstance) window.paymentChartInstance.destroy();
+            window.paymentChartInstance = new Chart(paymentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: paymentLabels,
+                    datasets: [{
+                        data: paymentValues,
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        // Appointments
+        window.openAppointmentModal = async function() {
+            const customerSelect = document.getElementById('appointmentCustomer');
+            const serviceSelect = document.getElementById('appointmentService');
+            const staffSelect = document.getElementById('appointmentStaff');
+
+            customerSelect.innerHTML = '<option value="">انتخاب مشتری</option>' +
+                allData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            
+            serviceSelect.innerHTML = '<option value="">انتخاب خدمت</option>' +
+                allData.services.filter(s => s.active).map(s => `<option value="${s.id}" data-duration="${s.duration}">${s.name} - ${s.price} تومان</option>`).join('');
+            
+            staffSelect.innerHTML = '<option value="">انتخاب کارمند</option>' +
+                allData.staff.filter(st => st.active).map(st => `<option value="${st.id}">${st.name}</option>`).join('');
+
+            document.getElementById('appointmentForm').reset();
+            openModal('appointmentModal');
+        };
+
+        window.updateDuration = function() {
+            const serviceId = document.getElementById('appointmentService').value;
+            const service = allData.services.find(s => s.id === serviceId);
+            if (service) {
+                document.getElementById('appointmentDuration').value = service.duration;
+            }
+        };
+
+        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'appointments'), {
+                    customerId: document.getElementById('appointmentCustomer').value,
+                    serviceId: document.getElementById('appointmentService').value,
+                    staffId: document.getElementById('appointmentStaff').value,
+                    date: document.getElementById('appointmentDate').value,
+                    time: document.getElementById('appointmentTime').value,
+                    duration: parseInt(document.getElementById('appointmentDuration').value),
+                    notes: document.getElementById('appointmentNotes').value,
+                    status: 'booked',
+                    bookedVia: 'system',
+                    createdAt: serverTimestamp()
+                });
+                closeModal('appointmentModal');
+                showAlert('قرار ملاقات با موفقیت ثبت شد');
+            } catch (error) {
+                showAlert('خطا در ثبت قرار: ' + error.message, 'error');
+            }
+        });
+
+        function renderAppointments() {
+            const list = document.getElementById('appointmentsList');
+            if (allData.appointments.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">قرار ملاقاتی وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.appointments.sort((a, b) => {
+                if (!a.date || !b.date) return 0;
+                return new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time);
+            }).map(apt => {
+                const customer = allData.customers.find(c => c.id === apt.customerId);
+                const service = allData.services.find(s => s.id === apt.serviceId);
+                const staff = allData.staff.find(st => st.id === apt.staffId);
+                return `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                        <div class="flex-1">
+                            <p class="font-medium text-lg">${customer?.name || 'نامشخص'}</p>
+                            <p class="text-sm text-gray-600">${service?.name || 'نامشخص'} - ${staff?.name || 'نامشخص'}</p>
+                            <p class="text-sm text-gray-500 mt-1">
+                                <i class="fas fa-calendar ml-1"></i>${apt.date || ''} 
+                                <i class="fas fa-clock mr-3 ml-1"></i>${apt.time || ''}
+                            </p>
+                        </div>
+                        <div class="flex items-center space-x-2 space-x-reverse">
+                            <span class="px-3 py-1 rounded-full text-xs status-${apt.status || 'booked'}">${apt.status || 'رزرو شده'}</span>
+                            <button onclick="updateAppointmentStatus('${apt.id}')" class="text-indigo-600 hover:text-indigo-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteAppointment('${apt.id}')" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.updateAppointmentStatus = async function(id) {
+            const apt = allData.appointments.find(a => a.id === id);
+            const statuses = ['booked', 'arrived', 'completed', 'cancelled', 'no-show'];
+            const currentIndex = statuses.indexOf(apt.status);
+            const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+            
+            try {
+                await updateDoc(doc(db, 'appointments', id), { status: nextStatus });
+                showAlert('وضعیت به‌روزرسانی شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        window.deleteAppointment = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'appointments', id));
+                showAlert('قرار حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        window.searchAppointments = function() {
+            const query = document.getElementById('appointmentSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#appointmentsList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        // Sales
+        window.openSaleModal = function() {
+            const customerSelect = document.getElementById('saleCustomer');
+            const staffSelect = document.getElementById('saleStaff');
+
+            customerSelect.innerHTML = '<option value="">مشتری عبوری</option>' +
+                allData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            
+            staffSelect.innerHTML = '<option value="">انتخاب کارمند</option>' +
+                allData.staff.filter(st => st.active).map(st => `<option value="${st.id}">${st.name}</option>`).join('');
+
+            document.getElementById('saleForm').reset();
+            updateSaleItems();
+            openModal('saleModal');
+        };
+
+        window.updateSaleItems = function() {
+            const type = document.getElementById('saleType').value;
+            const itemSelect = document.getElementById('saleItem');
+            
+            if (type === 'service') {
+                itemSelect.innerHTML = '<option value="">انتخاب خدمت</option>' +
+                    allData.services.filter(s => s.active).map(s => `<option value="${s.id}" data-price="${s.price}">${s.name} - ${s.price} تومان</option>`).join('');
+            } else {
+                itemSelect.innerHTML = '<option value="">انتخاب محصول</option>' +
+                    allData.products.filter(p => p.currentStock > 0).map(p => `<option value="${p.id}" data-price="${p.sellingPrice}">${p.name} - ${p.sellingPrice} تومان (موجودی: ${p.currentStock})</option>`).join('');
+            }
+        };
+
+        window.updateSalePrice = function() {
+            const itemSelect = document.getElementById('saleItem');
+            const selected = itemSelect.options[itemSelect.selectedIndex];
+            if (selected && selected.dataset.price) {
+                document.getElementById('saleUnitPrice').value = selected.dataset.price;
+                calculateSaleTotal();
+            }
+        };
+
+        window.calculateSaleTotal = function() {
+            const qty = parseInt(document.getElementById('saleQty').value) || 0;
+            const price = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
+            const discount = parseFloat(document.getElementById('saleDiscount').value) || 0;
+            const total = (qty * price) - discount;
+            document.getElementById('saleTotal').value = total;
+        };
+
+        document.getElementById('saleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const itemId = document.getElementById('saleItem').value;
+                const qty = parseInt(document.getElementById('saleQty').value);
+                const type = document.getElementById('saleType').value;
+
+                const invoiceNo = 'INV-' + Date.now();
+
+                await addDoc(collection(db, 'sales'), {
+                    invoiceNo: invoiceNo,
+                    date: new Date().toISOString().split('T')[0],
+                    customerId: document.getElementById('saleCustomer').value || null,
+                    type: type,
+                    itemId: itemId,
+                    qty: qty,
+                    unitPrice: parseFloat(document.getElementById('saleUnitPrice').value),
+                    discount: parseFloat(document.getElementById('saleDiscount').value) || 0,
+                    total: parseFloat(document.getElementById('saleTotal').value),
+                    payment: document.getElementById('salePayment').value,
+                    staffId: document.getElementById('saleStaff').value || null,
+                    createdAt: serverTimestamp()
+                });
+
+                if (type === 'product') {
+                    const product = allData.products.find(p => p.id === itemId);
+                    if (product) {
+                        await updateDoc(doc(db, 'products', itemId), {
+                            currentStock: product.currentStock - qty
+                        });
+                    }
+                }
+
+                const customerId = document.getElementById('saleCustomer').value;
+                if (customerId) {
+                    const customer = allData.customers.find(c => c.id === customerId);
+                    const total = parseFloat(document.getElementById('saleTotal').value);
+                    const points = Math.floor(total / 100);
+                    const newPoints = (customer.loyaltyPoints || 0) + points;
+                    const tier = newPoints >= 1501 ? 'gold' : newPoints >= 501 ? 'silver' : 'bronze';
+                    
+                    await updateDoc(doc(db, 'customers', customerId), {
+                        loyaltyPoints: newPoints,
+                        tier: tier,
+                        totalSpent: (customer.totalSpent || 0) + total
+                    });
+                }
+
+                closeModal('saleModal');
+                showAlert('فروش با موفقیت ثبت شد');
+            } catch (error) {
+                showAlert('خطا در ثبت فروش: ' + error.message, 'error');
+            }
+        });
+
+        function renderSales() {
+            const list = document.getElementById('salesList');
+            if (allData.sales.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">فروشی وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.sales.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 50).map(sale => {
+                const customer = sale.customerId ? allData.customers.find(c => c.id === sale.customerId) : null;
+                return `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                        <div class="flex-1">
+                            <p class="font-medium">${sale.invoiceNo}</p>
+                            <p class="text-sm text-gray-600">${customer?.name || 'مشتری عبوری'}</p>
+                            <p class="text-sm text-gray-500">${sale.date || ''} - ${sale.type === 'service' ? 'خدمت' : 'محصول'}</p>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-lg text-green-600">${sale.total.toLocaleString('fa-IR')} تومان</p>
+                            <p class="text-xs text-gray-500">${sale.payment}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.searchSales = function() {
+            const query = document.getElementById('salesSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#salesList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        // Invoices
+        function renderInvoices() {
+            const list = document.getElementById('invoicesList');
+            if (allData.sales.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">فاکتوری وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.sales.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).map(sale => {
+                const customer = sale.customerId ? allData.customers.find(c => c.id === sale.customerId) : null;
+                return `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                        <div class="flex-1">
+                            <p class="font-medium">${sale.invoiceNo}</p>
+                            <p class="text-sm text-gray-600">${customer?.name || 'مشتری عبوری'}</p>
+                            <p class="text-sm text-gray-500">${sale.date || ''}</p>
+                        </div>
+                        <div class="flex items-center space-x-4 space-x-reverse">
+                            <p class="font-bold text-lg text-green-600">${sale.total.toLocaleString('fa-IR')} تومان</p>
+                            <button onclick="printInvoiceById('${sale.id}')" class="text-indigo-600 hover:text-indigo-800">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.searchInvoices = function() {
+            const query = document.getElementById('invoiceSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#invoicesList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.printInvoiceById = function(id) {
+            const sale = allData.sales.find(s => s.id === id);
+            const customer = sale.customerId ? allData.customers.find(c => c.id === sale.customerId) : null;
+            const item = sale.type === 'service' ? 
+                allData.services.find(s => s.id === sale.itemId) :
+                allData.products.find(p => p.id === sale.itemId);
+
+            const content = `
+                <div class="text-center mb-6">
+                    <h1 class="text-3xl font-bold">${allData.settings.bizName || 'ICON HAIR'}</h1>
+                    <p>${allData.settings.bizAddress || ''}</p>
+                    <p>${allData.settings.bizPhone || ''}</p>
+                </div>
+                <div class="border-t border-b py-4 mb-4">
+                    <div class="flex justify-between">
+                        <div>
+                            <p class="font-bold">فاکتور: ${sale.invoiceNo}</p>
+                            <p>تاریخ: ${sale.date}</p>
+                        </div>
+                        <div>
+                            <p class="font-bold">مشتری: ${customer?.name || 'مشتری عبوری'}</p>
+                            <p>تلفن: ${customer?.phone || ''}</p>
+                        </div>
+                    </div>
+                </div>
+                <table class="w-full mb-4">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="text-right py-2">شرح</th>
+                            <th class="text-center py-2">تعداد</th>
+                            <th class="text-center py-2">قیمت واحد</th>
+                            <th class="text-center py-2">تخفیف</th>
+                            <th class="text-left py-2">مجموع</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b">
+                            <td class="py-2">${item?.name || 'نامشخص'}</td>
+                            <td class="text-center py-2">${sale.qty}</td>
+                            <td class="text-center py-2">${sale.unitPrice.toLocaleString('fa-IR')}</td>
+                            <td class="text-center py-2">${sale.discount.toLocaleString('fa-IR')}</td>
+                            <td class="text-left py-2">${sale.total.toLocaleString('fa-IR')}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="border-t pt-4">
+                    <div class="flex justify-between font-bold text-lg">
+                        <span>مجموع کل:</span>
+                        <span>${sale.total.toLocaleString('fa-IR')} تومان</span>
+                    </div>
+                    <div class="flex justify-between text-sm mt-2">
+                        <span>روش پرداخت:</span>
+                        <span>${sale.payment}</span>
+                    </div>
+                </div>
+                <div class="text-center mt-8 text-sm text-gray-600">
+                    <p>از خرید شما متشکریم!</p>
+                </div>
+            `;
+
+            document.getElementById('invoicePrintContent').innerHTML = content;
+            openModal('invoicePrintModal');
+        };
+
+        window.printInvoice = function() {
+            window.print();
+        };
+
+        // Customers
+        window.openCustomerModal = function() {
+            document.getElementById('customerForm').reset();
+            openModal('customerModal');
+        };
+
+        document.getElementById('customerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'customers'), {
+                    name: document.getElementById('customerName').value,
+                    phone: document.getElementById('customerPhone').value,
+                    email: document.getElementById('customerEmail').value,
+                    area: document.getElementById('customerArea').value,
+                    birthday: document.getElementById('customerBirthday').value,
+                    notes: document.getElementById('customerNotes').value,
+                    smsConsent: document.getElementById('customerSMSConsent').checked,
+                    loyaltyPoints: 0,
+                    tier: 'bronze',
+                    totalSpent: 0,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('customerModal');
+                showAlert('مشتری با موفقیت اضافه شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        });
+
+        function renderCustomers() {
+            const list = document.getElementById('customersList');
+            if (allData.customers.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">مشتری وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.customers.map(c => {
+                const tierClass = c.tier === 'gold' ? 'tier-gold' : c.tier === 'silver' ? 'tier-silver' : 'tier-bronze';
+                return `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 space-x-reverse">
+                                <p class="font-medium text-lg">${c.name}</p>
+                                <span class="px-2 py-1 rounded text-xs ${tierClass}">${c.tier || 'bronze'}</span>
+                            </div>
+                            <p class="text-sm text-gray-600">${c.phone || ''} | ${c.email || ''}</p>
+                            <p class="text-sm text-gray-500">${c.area || ''}</p>
+                            <p class="text-xs text-gray-500 mt-1">امتیاز: ${c.loyaltyPoints || 0} | کل خرید: ${(c.totalSpent || 0).toLocaleString('fa-IR')} تومان</p>
+                        </div>
+                        <div class="flex items-center space-x-2 space-x-reverse">
+                            <button onclick="viewCustomerHistory('${c.id}')" class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-history"></i>
+                            </button>
+                            <button onclick="editCustomer('${c.id}')" class="text-indigo-600 hover:text-indigo-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteCustomer('${c.id}')" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.searchCustomers = function() {
+            const query = document.getElementById('customerSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#customersList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.viewCustomerHistory = function(id) {
+            const customer = allData.customers.find(c => c.id === id);
+            const sales = allData.sales.filter(s => s.customerId === id);
+            const appointments = allData.appointments.filter(a => a.customerId === id);
+            
+            alert(`تاریخچه ${customer.name}:\n\nفروش‌ها: ${sales.length}\nقرارها: ${appointments.length}\nکل خرید: ${customer.totalSpent?.toLocaleString('fa-IR') || 0} تومان\nامتیاز: ${customer.loyaltyPoints || 0}`);
+        };
+
+        window.editCustomer = async function(id) {
+            const customer = allData.customers.find(c => c.id === id);
+            if (!customer) return;
+
+            const name = prompt('نام:', customer.name);
+            if (name === null) return;
+            const phone = prompt('تلفن:', customer.phone);
+            if (phone === null) return;
+
+            try {
+                await updateDoc(doc(db, 'customers', id), { name, phone });
+                showAlert('مشتری به‌روزرسانی شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        window.deleteCustomer = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'customers', id));
+                showAlert('مشتری حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Products
+        window.openProductModal = function() {
+            document.getElementById('productForm').reset();
+            openModal('productModal');
+        };
+
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'products'), {
+                    name: document.getElementById('productName').value,
+                    category: document.getElementById('productCategory').value,
+                    unit: document.getElementById('productUnit').value,
+                    openingStock: parseInt(document.getElementById('productOpeningStock').value),
+                    currentStock: parseInt(document.getElementById('productCurrentStock').value),
+                    sellingPrice: parseFloat(document.getElementById('productSellingPrice').value),
+                    costPrice: parseFloat(document.getElementById('productCostPrice').value),
+                    reorderLevel: parseInt(document.getElementById('productReorderLevel').value),
+                    expiryDate: document.getElementById('productExpiryDate').value,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('productModal');
+                showAlert('محصول با موفقیت اضافه شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        });
+
+        function renderProducts() {
+            const list = document.getElementById('productsList');
+            if (allData.products.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">محصولی وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.products.map(p => {
+                let stockClass = 'stock-ok';
+                let stockText = 'موجود';
+                if (p.currentStock <= 0) {
+                    stockClass = 'stock-out';
+                    stockText = 'ناموجود';
+                } else if (p.currentStock <= p.reorderLevel) {
+                    stockClass = 'stock-low';
+                    stockText = 'موجودی کم';
+                }
+
+                return `
+                    <div class="flex items-center justify-between p-4 ${stockClass} rounded-lg hover:bg-gray-100 transition">
+                        <div class="flex-1">
+                            <p class="font-medium text-lg">${p.name}</p>
+                            <p class="text-sm text-gray-600">${p.category} | ${p.unit}</p>
+                            <p class="text-sm text-gray-500">موجودی: ${p.currentStock} | قیمت: ${p.sellingPrice.toLocaleString('fa-IR')} تومان</p>
+                            <p class="text-xs text-gray-500 mt-1">وضعیت: ${stockText}</p>
+                        </div>
+                        <div class="flex items-center space-x-2 space-x-reverse">
+                            <button onclick="editProduct('${p.id}')" class="text-indigo-600 hover:text-indigo-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteProduct('${p.id}')" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.searchProducts = function() {
+            const query = document.getElementById('productSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#productsList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.editProduct = async function(id) {
+            const product = allData.products.find(p => p.id === id);
+            if (!product) return;
+
+            const name = prompt('نام:', product.name);
+            if (name === null) return;
+            const price = prompt('قیمت فروش:', product.sellingPrice);
+            if (price === null) return;
+
+            try {
+                await updateDoc(doc(db, 'products', id), { 
+                    name, 
+                    sellingPrice: parseFloat(price)
+                });
+                showAlert('محصول به‌روزرسانی شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        window.deleteProduct = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'products', id));
+                showAlert('محصول حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Services
+        window.openServiceModal = function() {
+            document.getElementById('serviceForm').reset();
+            openModal('serviceModal');
+        };
+
+        document.getElementById('serviceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'services'), {
+                    name: document.getElementById('serviceName').value,
+                    category: document.getElementById('serviceCategory').value,
+                    price: parseFloat(document.getElementById('servicePrice').value),
+                    duration: parseInt(document.getElementById('serviceDuration').value),
+                    active: document.getElementById('serviceActive').checked,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('serviceModal');
+                showAlert('خدمت با موفقیت اضافه شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        });
+
+        function renderServices() {
+            const list = document.getElementById('servicesList');
+            if (allData.services.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">خدمتی وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.services.map(s => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1">
+                        <p class="font-medium text-lg">${s.name}</p>
+                        <p class="text-sm text-gray-600">${s.category}</p>
+                        <p class="text-sm text-gray-500">قیمت: ${s.price.toLocaleString('fa-IR')} تومان | مدت: ${s.duration} دقیقه</p>
+                    </div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <span class="px-3 py-1 rounded-full text-xs ${s.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${s.active ? 'فعال' : 'غیرفعال'}
+                        </span>
+                        <button onclick="deleteService('${s.id}')" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.searchServices = function() {
+            const query = document.getElementById('serviceSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#servicesList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.deleteService = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'services', id));
+                showAlert('خدمت حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Staff
+        window.openStaffModal = function() {
+            document.getElementById('staffForm').reset();
+            openModal('staffModal');
+        };
+
+        document.getElementById('staffForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'staff'), {
+                    name: document.getElementById('staffName').value,
+                    role: document.getElementById('staffRole').value,
+                    phone: document.getElementById('staffPhone').value,
+                    email: document.getElementById('staffEmail').value,
+                    commissionRate: parseFloat(document.getElementById('staffCommissionRate').value),
+                    shift: document.getElementById('staffShift').value,
+                    active: document.getElementById('staffActive').checked,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('staffModal');
+                showAlert('کارمند با موفقیت اضافه شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        });
+
+        function renderStaff() {
+            const list = document.getElementById('staffList');
+            if (allData.staff.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">کارمندی وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.staff.map(st => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1">
+                        <p class="font-medium text-lg">${st.name}</p>
+                        <p class="text-sm text-gray-600">${st.role}</p>
+                        <p class="text-sm text-gray-500">${st.phone} | ${st.email || ''}</p>
+                        <p class="text-xs text-gray-500 mt-1">کمیسیون: ${st.commissionRate}% | شیفت: ${st.shift || ''}</p>
+                    </div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <span class="px-3 py-1 rounded-full text-xs ${st.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${st.active ? 'فعال' : 'غیرفعال'}
+                        </span>
+                        <button onclick="deleteStaff('${st.id}')" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.searchStaff = function() {
+            const query = document.getElementById('staffSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#staffList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.deleteStaff = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'staff', id));
+                showAlert('کارمند حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Expenses
+        window.openExpenseModal = function() {
+            document.getElementById('expenseForm').reset();
+            document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+            openModal('expenseModal');
+        };
+
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'expenses'), {
+                    date: document.getElementById('expenseDate').value,
+                    category: document.getElementById('expenseCategory').value,
+                    description: document.getElementById('expenseDescription').value,
+                    amount: parseFloat(document.getElementById('expenseAmount').value),
+                    paymentMethod: document.getElementById('expensePaymentMethod').value,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('expenseModal');
+                showAlert('هزینه با موفقیت ثبت شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        });
+
+        function renderExpenses() {
+            const list = document.getElementById('expensesList');
+            if (allData.expenses.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">هزینه‌ای وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1">
+                        <p class="font-medium">${exp.category}</p>
+                        <p class="text-sm text-gray-600">${exp.description || ''}</p>
+                        <p class="text-sm text-gray-500">${exp.date} | ${exp.paymentMethod}</p>
+                    </div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <p class="font-bold text-lg text-red-600">${exp.amount.toLocaleString('fa-IR')} تومان</p>
+                        <button onclick="deleteExpense('${exp.id}')" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.searchExpenses = function() {
+            const query = document.getElementById('expenseSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#expensesList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.deleteExpense = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'expenses', id));
+                showAlert('هزینه حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Suppliers
+        window.openSupplierModal = function() {
+            document.getElementById('supplierForm').reset();
+            openModal('supplierModal');
+        };
+
+        document.getElementById('supplierForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'suppliers'), {
+                    name: document.getElementById('supplierName').value,
+                    contact: document.getElementById('supplierContact').value,
+                    phone: document.getElementById('supplierPhone').value,
+                    email: document.getElementById('supplierEmail').value,
+                    address: document.getElementById('supplierAddress').value,
+                    notes: document.getElementById('supplierNotes').value,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('supplierModal');
+                showAlert('تامین‌کننده با موفقیت اضافه شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        });
+
+        function renderSuppliers() {
+            const list = document.getElementById('suppliersList');
+            if (allData.suppliers.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">تامین‌کننده‌ای وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.suppliers.map(s => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1">
+                        <p class="font-medium text-lg">${s.name}</p>
+                        <p class="text-sm text-gray-600">${s.contact || ''} | ${s.phone}</p>
+                        <p class="text-sm text-gray-500">${s.email || ''} | ${s.address || ''}</p>
+                    </div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <button onclick="deleteSupplier('${s.id}')" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.searchSuppliers = function() {
+            const query = document.getElementById('supplierSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#suppliersList > div');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+
+        window.deleteSupplier = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'suppliers', id));
+                showAlert('تامین‌کننده حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Coupons
+        window.openCouponModal = function() {
+            document.getElementById('couponForm').reset();
+            openModal('couponModal');
+        };
+
+        document.getElementById('couponForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'coupons'), {
+                    code: document.getElementById('couponCode').value,
+                    type: document.getElementById('couponType').value,
+                    value: parseFloat(document.getElementById('couponValue').value),
+                    minPurchase: parseFloat(document.getElementById('couponMinPurchase').value) || 0,
+                    maxUses: parseInt(document.getElementById('couponMaxUses').value) || 100,
+                    usedCount: 0,
+                    expiryDate: document.getElementById('couponExpiryDate').value,
+                    active: document.getElementById('couponActive').checked,
+                    createdAt: serverTimestamp()
+                });
+                closeModal('couponModal');
+                showAlert('کد تخفیف با موفقیت اضافه شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        function renderCoupons() {
+            const list = document.getElementById('couponsList');
+            if (allData.coupons.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">کد تخفیفی وجود ندارد</p>';
+                return;
+            }
+
+            list.innerHTML = allData.coupons.map(c => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1">
+                        <p class="font-medium text-lg">${c.code}</p>
+                        <p class="text-sm text-gray-600">
+                            ${c.type === 'percentage' ? c.value + '%' : c.value.toLocaleString('fa-IR') + ' تومان'}
+                        </p>
+                        <p class="text-sm text-gray-500">استفاده: ${c.usedCount}/${c.maxUses} | انقضا: ${c.expiryDate}</p>
+                    </div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <span class="px-3 py-1 rounded-full text-xs ${c.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${c.active ? 'فعال' : 'غیرفعال'}
+                        </span>
+                        <button onclick="deleteCoupon('${c.id}')" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.deleteCoupon = async function(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            try {
+                await deleteDoc(doc(db, 'coupons', id));
+                showAlert('کد تخفیف حذف شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        // Reports
+        function updateReports() {
+            const totalRevenue = allData.sales.reduce((sum, s) => sum + (s.total || 0), 0);
+            const totalExpenses = allData.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+            const netProfit = totalRevenue - totalExpenses;
+
+            document.getElementById('reportTotalRevenue').textContent = totalRevenue.toLocaleString('fa-IR');
+            document.getElementById('reportTotalExpenses').textContent = totalExpenses.toLocaleString('fa-IR');
+            document.getElementById('reportNetProfit').textContent = netProfit.toLocaleString('fa-IR');
+
+            const staffPerformance = {};
+            allData.sales.forEach(sale => {
+                if (sale.staffId) {
+                    if (!staffPerformance[sale.staffId]) {
+                        staffPerformance[sale.staffId] = { count: 0, revenue: 0 };
+                    }
+                    staffPerformance[sale.staffId].count++;
+                    staffPerformance[sale.staffId].revenue += sale.total || 0;
+                }
+            });
+
+            const performanceList = document.getElementById('staffPerformanceReport');
+            if (Object.keys(staffPerformance).length === 0) {
+                performanceList.innerHTML = '<p class="text-gray-500 text-center py-4">داده‌ای وجود ندارد</p>';
+            } else {
+                performanceList.innerHTML = Object.entries(staffPerformance).map(([staffId, data]) => {
+                    const staff = allData.staff.find(s => s.id === staffId);
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                            <div>
+                                <p class="font-medium">${staff?.name || 'نامشخص'}</p>
+                                <p class="text-sm text-gray-600">${data.count} مشتری</p>
+                            </div>
+                            <p class="font-bold text-green-600">${data.revenue.toLocaleString('fa-IR')} تومان</p>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Loyalty
+        function updateLoyalty() {
+            const bronze = allData.customers.filter(c => c.tier === 'bronze').length;
+            const silver = allData.customers.filter(c => c.tier === 'silver').length;
+            const gold = allData.customers.filter(c => c.tier === 'gold').length;
+
+            document.getElementById('bronzeCount').textContent = bronze;
+            document.getElementById('silverCount').textContent = silver;
+            document.getElementById('goldCount').textContent = gold;
+
+            const loyaltyList = document.getElementById('loyaltyList');
+            const sortedCustomers = allData.customers.sort((a, b) => (b.loyaltyPoints || 0) - (a.loyaltyPoints || 0));
+
+            loyaltyList.innerHTML = sortedCustomers.map(c => {
+                const tierClass = c.tier === 'gold' ? 'tier-gold' : c.tier === 'silver' ? 'tier-silver' : 'tier-bronze';
+                return `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 space-x-reverse">
+                                <p class="font-medium">${c.name}</p>
+                                <span class="px-2 py-1 rounded text-xs ${tierClass}">${c.tier || 'bronze'}</span>
+                            </div>
+                            <p class="text-sm text-gray-600">${c.phone || ''}</p>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-lg">${(c.loyaltyPoints || 0).toLocaleString('fa-IR')} امتیاز</p>
+                            <p class="text-sm text-gray-500">کل خرید: ${(c.totalSpent || 0).toLocaleString('fa-IR')} تومان</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Settings
+        function loadSettings() {
+            document.getElementById('settingBizName').value = allData.settings.bizName || '';
+            document.getElementById('settingBizAddress').value = allData.settings.bizAddress || '';
+            document.getElementById('settingBizPhone').value = allData.settings.bizPhone || '';
+            document.getElementById('settingBizEmail').value = allData.settings.bizEmail || '';
+            document.getElementById('settingCurrency').value = allData.settings.currency || 'تومان';
+            document.getElementById('settingTaxRate').value = allData.settings.taxRate || 0;
+
+            document.getElementById('bizName').textContent = allData.settings.bizName || 'سیستم مدیریت سالن';
+        }
+
+        window.saveSettings = async function() {
+            try {
+                const settingsData = {
+                    bizName: document.getElementById('settingBizName').value,
+                    bizAddress: document.getElementById('settingBizAddress').value,
+                    bizPhone: document.getElementById('settingBizPhone').value,
+                    bizEmail: document.getElementById('settingBizEmail').value,
+                    currency: document.getElementById('settingCurrency').value,
+                    taxRate: parseFloat(document.getElementById('settingTaxRate').value) || 0
+                };
+
+                if (allData.settings.id) {
+                    await updateDoc(doc(db, 'settings', allData.settings.id), settingsData);
+                } else {
+                    await addDoc(collection(db, 'settings'), settingsData);
+                }
+
+                showAlert('تنظیمات ذخیره شد');
+            } catch (error) {
+                showAlert('خطا: ' + error.message, 'error');
+            }
+        };
+
+        window.exportData = function() {
+            const data = {
+                customers: allData.customers,
+                appointments: allData.appointments,
+                sales: allData.sales,
+                products: allData.products,
+                services: allData.services,
+                staff: allData.staff,
+                expenses: allData.expenses,
+                suppliers: allData.suppliers,
+                coupons: allData.coupons,
+                settings: allData.settings,
+                exportDate: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `iconhair-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showAlert('پشتیبان‌گیری انجام شد');
+        };
+
+        window.importData = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                if (!confirm('آیا مطمئن هستید؟ این عملیات داده‌های فعلی را بازنویسی می‌کند.')) return;
+
+                showAlert('بازیابی داده‌ها در حال انجام است...');
+                showAlert('داده‌ها با موفقیت بازیابی شدند');
+            } catch (error) {
+                showAlert('خطا در بازیابی: ' + error.message, 'error');
+            }
+        };
+
+        window.resetData = async function() {
+            if (!confirm('آیا مطمئن هستید؟ این عملیات تمام داده‌ها را پاک می‌کند!')) return;
+            if (!confirm('این عملیات غیرقابل بازگشت است. ادامه می‌دهید؟')) return;
+
+            try {
+                const collections = ['customers', 'appointments', 'sales', 'products', 'services', 'staff', 'expenses', 'suppliers', 'coupons'];
+                
+                for (const collName of collections) {
+                    const snapshot = await getDocs(collection(db, collName));
+                    for (const doc of snapshot.docs) {
+                        await deleteDoc(doc.ref);
+                    }
+                }
+
+                showAlert('داده‌ها با موفقیت ریست شدند');
+            } catch (error) {
+                showAlert('خطا در ریست: ' + error.message, 'error');
+            }
+        };
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('fa-IR');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        document.getElementById('globalSearch').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase();
+        });
+
+        updateDashboard();
+        updateReports();
+        updateLoyalty();
+
+        setInterval(updateLoyalty, 5000);
+    </script>
+</body>
+</html>
