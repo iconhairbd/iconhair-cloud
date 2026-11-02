@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" id="htmlRoot">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>ICON HAIR - Salon Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+        :root { --font-family: 'Inter', system-ui, sans-serif; }
+        [dir="rtl"] { --font-family: 'Vazirmatn', sans-serif; }
+        * { font-family: var(--font-family); }
+        .hidden { display: none !important; }
+        .sidebar-item.active { background: #4f46e5; color: white; }
+        .sidebar-item:hover { background: #4f46e5; color: white; transition: all 0.3s; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; }
+        }
+        .print-only { display: none; }
+        .tier-bronze { background: #cd7f32; color: white; }
+        .tier-silver { background: #c0c0c0; color: #333; }
+        .tier-gold { background: #ffd700; color: #333; }
+        .stock-low { background: #fef3c7; border-inline-end: 4px solid #f59e0b; }
+        .stock-out { background: #fee2e2; border-inline-end: 4px solid #ef4444; }
+        .stock-ok { background: #d1fae5; border-inline-end: 4px solid #10b981; }
+        .loading { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .modal { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .alert { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        [dir="rtl"] .alert { animation: slideInRTL 0.3s ease-out; }
+        @keyframes slideInRTL { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .status-booked { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+        .status-arrived { background: #fef3c7; color: #92400e; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <!-- REPLACE THE SRC BELOW WITH YOUR ACTUAL LOGO URL -->
+                <img src="https://via.placeholder.com/150x60/4f46e5/ffffff?text=ICON+HAIR" alt="ICON HAIR Logo" class="h-16 mx-auto mb-4 rounded-lg object-contain">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">ICON HAIR</h1>
+                <p class="text-gray-600" data-i18n="login_subtitle">Salon Management System</p>
+            </div>
+            <form id="loginForm" class="space-y-4" autocomplete="off">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="login_email">Email</label>
+                    <input type="email" id="loginEmail" required autocomplete="off" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" data-i18n-placeholder="placeholder_email">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="login_password">Password</label>
+                    <input type="password" id="loginPassword" required autocomplete="off" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent" data-i18n-placeholder="placeholder_password">
+                </div>
+                <button type="submit" id="loginBtn" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium">
+                    <i class="fas fa-sign-in-alt ms-2"></i><span data-i18n="btn_login">Login</span>
+                </button>
+            </form>
+            <div id="loginError" class="hidden mt-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm"></div>
+            <div id="loginInfo" class="mt-4 p-3 bg-blue-50 text-blue-600 rounded-lg text-sm hidden"></div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-indigo-900 text-white flex flex-col no-print">
+            <div class="p-6 border-b border-indigo-800 text-center">
+                <!-- REPLACE THE SRC BELOW WITH YOUR ACTUAL LOGO URL -->
+                <img src="https://via.placeholder.com/120x50/ffffff/4f46e5?text=ICON+HAIR" alt="Logo" class="h-10 mx-auto mb-2 rounded object-contain bg-white p-1">
+                <p class="text-sm text-indigo-300" id="bizName" data-i18n="default_biz_name">Salon Management</p>
+            </div>
+            
+            <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+                <button onclick="showPage('dashboard')" class="sidebar-item active w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-tachometer-alt w-6"></i><span data-i18n="nav_dashboard">Dashboard</span></button>
+                <button onclick="showPage('appointments')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-calendar-check w-6"></i><span data-i18n="nav_appointments">Appointments</span></button>
+                <button onclick="showPage('sales')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-shopping-cart w-6"></i><span data-i18n="nav_sales">Sales</span></button>
+                <button onclick="showPage('invoices')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-file-invoice w-6"></i><span data-i18n="nav_invoices">Invoices</span></button>
+                <button onclick="showPage('customers')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-users w-6"></i><span data-i18n="nav_customers">Customers</span></button>
+                <button onclick="showPage('products')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-boxes w-6"></i><span data-i18n="nav_products">Products</span></button>
+                <button onclick="showPage('services')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-concierge-bell w-6"></i><span data-i18n="nav_services">Services</span></button>
+                <button onclick="showPage('staff')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-user-tie w-6"></i><span data-i18n="nav_staff">Staff</span></button>
+                <button onclick="showPage('expenses')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-money-bill-wave w-6"></i><span data-i18n="nav_expenses">Expenses</span></button>
+                <button onclick="showPage('suppliers')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-truck w-6"></i><span data-i18n="nav_suppliers">Suppliers</span></button>
+                <button onclick="showPage('reports')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-chart-line w-6"></i><span data-i18n="nav_reports">Reports</span></button>
+                <button onclick="showPage('loyalty')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-star w-6"></i><span data-i18n="nav_loyalty">Loyalty</span></button>
+                <button onclick="showPage('coupons')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-ticket-alt w-6"></i><span data-i18n="nav_coupons">Coupons</span></button>
+                <button onclick="showPage('settings')" class="sidebar-item w-full text-start px-4 py-3 rounded-lg flex items-center"><i class="fas fa-cog w-6"></i><span data-i18n="nav_settings">Settings</span></button>
+            </nav>
+
+            <div class="p-4 border-t border-indigo-800 space-y-2">
+                <button onclick="openModal('bugModal')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded-lg transition text-sm flex items-center justify-center">
+                    <i class="fas fa-bug ms-2"></i><span data-i18n="btn_report_bug">Report Bug</span>
+                </button>
+                <div class="flex items-center mb-2">
+                    <div class="w-8 h-8 bg-indigo-700 rounded-full flex items-center justify-center"><i class="fas fa-user text-sm"></i></div>
+                    <div class="ms-3 flex-1">
+                        <p class="font-medium text-sm" id="userName" data-i18n="user_name">User Name</p>
+                        <p class="text-xs text-indigo-300" id="userRole">Admin</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition text-sm">
+                    <i class="fas fa-sign-out-alt ms-2"></i><span data-i18n="btn_logout">Logout</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow-sm no-print">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <div class="flex items-center">
+                        <input type="text" id="globalSearch" data-i18n-placeholder="placeholder_search" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-64">
+                        <button class="ms-3 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                            <i class="fas fa-search ms-2"></i><span data-i18n="btn_search">Search</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <button onclick="toggleLanguage()" class="p-2 text-gray-600 hover:text-indigo-600 transition" title="Toggle Language">
+                            <i class="fas fa-globe text-xl"></i>
+                            <span id="langLabel" class="text-sm font-bold ms-1">FA</span>
+                        </button>
+                        <div class="text-sm text-gray-600 font-mono">
+                            <i class="fas fa-clock ms-1"></i><span id="currentTime"></span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <!-- Dashboard -->
+                <div id="dashboard" class="page">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n="nav_dashboard">Dashboard</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white rounded-xl shadow-md p-6 border-e-4 border-indigo-500">
+                            <div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm mb-1" data-i18n="stat_customers">Total Customers</p><p class="text-3xl font-bold text-gray-800" id="totalCustomers">0</p></div><i class="fas fa-users text-4xl text-indigo-500 opacity-50"></i></div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 border-e-4 border-green-500">
+                            <div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm mb-1" data-i18n="stat_today_sales">Today's Sales</p><p class="text-3xl font-bold text-gray-800" id="todaySales">0</p></div><i class="fas fa-shopping-cart text-4xl text-green-500 opacity-50"></i></div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 border-e-4 border-purple-500">
+                            <div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm mb-1" data-i18n="stat_monthly_rev">Monthly Revenue</p><p class="text-3xl font-bold text-gray-800" id="monthlyRevenue">0</p></div><i class="fas fa-dollar-sign text-4xl text-purple-500 opacity-50"></i></div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6 border-e-4 border-orange-500">
+                            <div class="flex items-center justify-between"><div><p class="text-gray-500 text-sm mb-1" data-i18n="stat_today_appts">Today's Appointments</p><p class="text-3xl font-bold text-gray-800" id="todayAppointments">0</p></div><i class="fas fa-calendar-check text-4xl text-orange-500 opacity-50"></i></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="chart_sales_trend">Sales Trend (Last 7 Days)</h3><canvas id="salesChart"></canvas></div>
+                        <div class="bg-white rounded-xl shadow-md p-6"><h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="chart_payment_dist">Payment Methods Distribution</h3><canvas id="paymentChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="appts_today">Today's Appointments</h3>
+                        <div id="todayAppointmentsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Appointments -->
+                <div id="appointments" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_appointments">Appointments</h2>
+                        <button onclick="openAppointmentModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_appt">New Appointment</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="appointmentSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchAppointments()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="appointmentsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Sales -->
+                <div id="sales" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_sales">Sales</h2>
+                        <button onclick="openSaleModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_sale">New Sale</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="salesSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchSales()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="salesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Invoices -->
+                <div id="invoices" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n="nav_invoices">Invoices</h2>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="invoiceSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchInvoices()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="invoicesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Customers -->
+                <div id="customers" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_customers">Customers</h2>
+                        <button onclick="openCustomerModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_cust">New Customer</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="customerSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchCustomers()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="customersList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Products -->
+                <div id="products" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_products">Products</h2>
+                        <button onclick="openProductModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_prod">New Product</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="productSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchProducts()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="productsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Services -->
+                <div id="services" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_services">Services</h2>
+                        <button onclick="openServiceModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_service">New Service</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="serviceSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchServices()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="servicesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Staff -->
+                <div id="staff" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_staff">Staff</h2>
+                        <button onclick="openStaffModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_staff">New Staff</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="staffSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchStaff()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="staffList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Expenses -->
+                <div id="expenses" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_expenses">Expenses</h2>
+                        <button onclick="openExpenseModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_expense">New Expense</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="expenseSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchExpenses()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="expensesList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Suppliers -->
+                <div id="suppliers" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_suppliers">Suppliers</h2>
+                        <button onclick="openSupplierModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_supplier">New Supplier</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <input type="text" id="supplierSearch" data-i18n-placeholder="placeholder_search" onkeyup="searchSuppliers()" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4">
+                        <div id="suppliersList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Reports -->
+                <div id="reports" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n="nav_reports">Reports</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="report_pl">Profit & Loss Report</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between"><span class="text-gray-600" data-i18n="report_total_rev">Total Revenue:</span><span class="font-bold text-green-600" id="reportTotalRevenue">0</span></div>
+                                <div class="flex justify-between"><span class="text-gray-600" data-i18n="report_total_exp">Total Expenses:</span><span class="font-bold text-red-600" id="reportTotalExpenses">0</span></div>
+                                <div class="flex justify-between border-t pt-3"><span class="text-gray-800 font-medium" data-i18n="report_net_profit">Net Profit:</span><span class="font-bold text-indigo-600" id="reportNetProfit">0</span></div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="report_staff_perf">Staff Performance</h3>
+                            <div id="staffPerformanceReport" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loyalty -->
+                <div id="loyalty" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n="nav_loyalty">Loyalty Program</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="loyalty_stats">Overall Statistics</h3>
+                            <div class="space-y-2">
+                                <p><span data-i18n="tier_bronze">Bronze</span>: <span id="bronzeCount" class="font-bold">0</span></p>
+                                <p><span data-i18n="tier_silver">Silver</span>: <span id="silverCount" class="font-bold">0</span></p>
+                                <p><span data-i18n="tier_gold">Gold</span>: <span id="goldCount" class="font-bold">0</span></p>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-md p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="loyalty_rules">Rules</h3>
+                            <div class="space-y-2 text-sm">
+                                <p data-i18n="loyalty_rule_1">Earn 1 point per 100 BDT spent</p>
+                                <p data-i18n="loyalty_rule_2">Redeem 100 points = 50 BDT discount</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="loyalty_list_title">Customers by Points</h3>
+                        <div id="loyaltyList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Coupons -->
+                <div id="coupons" class="page hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800" data-i18n="nav_coupons">Coupons</h2>
+                        <button onclick="openCouponModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus ms-2"></i><span data-i18n="btn_new_coupon">New Coupon</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md p-6">
+                        <div id="couponsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div id="settings" class="page hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n="nav_settings">Settings</h2>
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="setting_biz_info">Business Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_biz_name">Business Name</label><input type="text" id="settingBizName" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_biz_address">Address</label><input type="text" id="settingBizAddress" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_biz_phone">Phone</label><input type="text" id="settingBizPhone" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_biz_email">Email</label><input type="email" id="settingBizEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_currency">Currency</label><input type="text" id="settingCurrency" value="BDT" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_tax_rate">Tax Rate (%)</label><input type="number" id="settingTaxRate" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                        </div>
+                        <button onclick="saveSettings()" class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-save ms-2"></i><span data-i18n="btn_save_settings">Save Settings</span></button>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4" data-i18n="setting_backup">Backup & Restore</h3>
+                        <div class="flex space-x-4 space-x-reverse">
+                            <button onclick="exportData()" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"><i class="fas fa-download ms-2"></i><span data-i18n="btn_backup">Backup</span></button>
+                            <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-upload ms-2"></i><span data-i18n="btn_restore">Restore</span></button>
+                            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-red-600" data-i18n="setting_reset">Reset Data</h3>
+                        <p class="text-gray-600 mb-4" data-i18n="reset_desc">This will clear all customers, invoices, appointments, and products, but keep settings.</p>
+                        <button onclick="resetData()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-trash ms-2"></i><span data-i18n="btn_reset">Reset Data</span></button>
+                    </div>
+
+                    <!-- Developer Credits Section -->
+                    <div class="bg-white rounded-xl shadow-md p-6 border-t-4 border-indigo-600">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><i class="fas fa-code ms-2 text-indigo-600"></i> About ICON HAIR</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="space-y-2">
+                                <p><strong class="text-gray-700">Developer:</strong> <span class="text-indigo-700 font-semibold">ALI SADEGHI</span></p>
+                                <p><strong class="text-gray-700">Website:</strong> <a href="https://iamalisadeghi.ir" target="_blank" class="text-indigo-600 hover:underline">iamalisadeghi.ir</a></p>
+                                <p><strong class="text-gray-700">Support Email:</strong> <a href="mailto:info@iamalisadeghi.ir" class="text-indigo-600 hover:underline">info@iamalisadeghi.ir</a></p>
+                            </div>
+                            <div class="text-gray-600">
+                                <p class="font-semibold text-gray-800 mb-1">Program Features:</p>
+                                <p>Comprehensive cloud-based salon management with real-time sync, inventory tracking, staff commission, P&L reports, customer loyalty programs, automated invoicing, and multi-language support (EN/FA).</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Appointment Modal -->
+    <div id="appointmentModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_appt">New Appointment</h3></div>
+            <form id="appointmentForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_customer">Customer</label><select id="appointmentCustomer" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_service">Service</label><select id="appointmentService" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="updateDuration()"></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_staff">Staff</label><select id="appointmentStaff" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_date">Date</label><input type="date" id="appointmentDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_time">Time</label><input type="time" id="appointmentTime" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                </div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_duration">Duration (min)</label><input type="number" id="appointmentDuration" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_notes">Notes</label><textarea id="appointmentNotes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('appointmentModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sale Modal -->
+    <div id="saleModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_sale">New Sale</h3></div>
+            <form id="saleForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_customer_opt">Customer (Optional)</label><select id="saleCustomer" class="w-full px-4 py-2 border border-gray-300 rounded-lg"><option value="" data-i18n="opt_walk_in">Walk-in Customer</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_type">Type</label><select id="saleType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="updateSaleItems()"><option value="service" data-i18n="opt_service">Service</option><option value="product" data-i18n="opt_product">Product</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_item">Item</label><select id="saleItem" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="updateSalePrice()"></select></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_qty">Quantity</label><input type="number" id="saleQty" value="1" min="1" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="calculateSaleTotal()"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_unit_price">Unit Price</label><input type="number" id="saleUnitPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="calculateSaleTotal()"></div>
+                </div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_discount">Discount</label><input type="number" id="saleDiscount" value="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg" onchange="calculateSaleTotal()"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_total">Total</label><input type="number" id="saleTotal" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_payment">Payment Method</label><select id="salePayment" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"><option value="cash" data-i18n="pay_cash">Cash</option><option value="card" data-i18n="pay_card">Card</option><option value="transfer" data-i18n="pay_transfer">Bank Transfer</option><option value="bkash" data-i18n="pay_bkash">bKash</option><option value="nagad" data-i18n="pay_nagad">Nagad</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_staff">Staff</label><select id="saleStaff" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></select></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save_sale">Save Sale</button>
+                    <button type="button" onclick="closeModal('saleModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Modal -->
+    <div id="customerModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_cust">New Customer</h3></div>
+            <form id="customerForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_name">Name</label><input type="text" id="customerName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_phone">Phone</label><input type="tel" id="customerPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_email">Email</label><input type="email" id="customerEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_area">Area</label><input type="text" id="customerArea" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_notes">Notes</label><textarea id="customerNotes" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('customerModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_prod">New Product</h3></div>
+            <form id="productForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_prod_name">Product Name</label><input type="text" id="productName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_category">Category</label><input type="text" id="productCategory" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_current_stock">Current Stock</label><input type="number" id="productCurrentStock" value="0" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_reorder_level">Reorder Level</label><input type="number" id="productReorderLevel" value="10" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_selling_price">Selling Price</label><input type="number" id="productSellingPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_cost_price">Cost Price</label><input type="number" id="productCostPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('productModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Service Modal -->
+    <div id="serviceModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_service">New Service</h3></div>
+            <form id="serviceForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_service_name">Service Name</label><input type="text" id="serviceName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_category">Category</label><input type="text" id="serviceCategory" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_price">Price</label><input type="number" id="servicePrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_duration">Duration (min)</label><input type="number" id="serviceDuration" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('serviceModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Staff Modal -->
+    <div id="staffModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_staff">New Staff</h3></div>
+            <form id="staffForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_name">Name</label><input type="text" id="staffName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_role">Role</label><input type="text" id="staffRole" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_phone">Phone</label><input type="tel" id="staffPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_commission">Commission Rate (%)</label><input type="number" id="staffCommissionRate" value="10" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('staffModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Expense Modal -->
+    <div id="expenseModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_expense">New Expense</h3></div>
+            <form id="expenseForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_date">Date</label><input type="date" id="expenseDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_category">Category</label><input type="text" id="expenseCategory" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_description">Description</label><textarea id="expenseDescription" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="3"></textarea></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_amount">Amount</label><input type="number" id="expenseAmount" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('expenseModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Supplier Modal -->
+    <div id="supplierModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_supplier">New Supplier</h3></div>
+            <form id="supplierForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_name">Name</label><input type="text" id="supplierName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_phone">Phone</label><input type="tel" id="supplierPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_address">Address</label><textarea id="supplierAddress" class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="2"></textarea></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('supplierModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Coupon Modal -->
+    <div id="couponModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_new_coupon">New Coupon</h3></div>
+            <form id="couponForm" class="p-6 space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_code">Code</label><input type="text" id="couponCode" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_type">Type</label><select id="couponType" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"><option value="percentage" data-i18n="type_percentage">Percentage</option><option value="fixed" data-i18n="type_fixed">Fixed Amount</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_value">Value</label><input type="number" id="couponValue" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="lbl_expiry">Expiry Date</label><input type="date" id="couponExpiryDate" required class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition" data-i18n="btn_save">Save</button>
+                    <button type="button" onclick="closeModal('couponModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bug Report Modal -->
+    <div id="bugModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b bg-yellow-50"><h3 class="text-xl font-bold text-gray-800 flex items-center"><i class="fas fa-bug ms-2 text-yellow-600"></i> <span data-i18n="btn_report_bug">Report Bug</span></h3></div>
+            <form id="bugForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                    <input type="text" id="bugTitle" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Brief description of the issue">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Detailed Description</label>
+                    <textarea id="bugDesc" required class="w-full px-4 py-2 border border-gray-300 rounded-lg" rows="4" placeholder="What were you doing when the issue occurred?"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Screenshot (Max 500KB)</label>
+                    <input type="file" id="bugImage" accept="image/*" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                    <p class="text-xs text-gray-500 mt-1">Image will be saved directly to the database for developer review.</p>
+                </div>
+                <div class="flex space-x-4 space-x-reverse">
+                    <button type="submit" class="flex-1 bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 transition font-medium">
+                        <i class="fas fa-paper-plane ms-2"></i> Submit Report
+                    </button>
+                    <button type="button" onclick="closeModal('bugModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Invoice Print Modal -->
+    <div id="invoicePrintModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b no-print"><h3 class="text-xl font-bold text-gray-800" data-i18n="modal_print_invoice">Print Invoice</h3></div>
+            <div id="invoicePrintContent" class="p-6 print-only"></div>
+            <div class="p-6 border-t no-print">
+                <div class="flex space-x-4 space-x-reverse">
+                    <button onclick="printInvoice()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-print ms-2"></i><span data-i18n="btn_print">Print</span></button>
+                    <button onclick="closeModal('invoicePrintModal')" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition" data-i18n="btn_close">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="fixed top-4 start-4 space-y-2 z-50 no-print"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCqTf5VyK61lZ8rrkSSJe4B5HaZxFc0vsc",
+            authDomain: "iconhairbd-1.firebaseapp.com",
+            projectId: "iconhairbd-1",
+            storageBucket: "iconhairbd-1.firebasestorage.app",
+            messagingSenderId: "546467261964",
+            appId: "1:546467261964:web:3a081d582974a91ca38829"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let allData = { customers: [], appointments: [], sales: [], products: [], services: [], staff: [], expenses: [], suppliers: [], coupons: [], settings: {} };
+        let currentLang = localStorage.getItem('iconhair_lang') || 'en';
+
+        const translations = {
+            en: {
+                login_subtitle: "Salon Management System", login_email: "Email", login_password: "Password",
+                placeholder_email: "email@example.com", placeholder_password: "••••••••", placeholder_search: "Search...",
+                btn_login: "Login", btn_search: "Search", default_biz_name: "Salon Management",
+                nav_dashboard: "Dashboard", nav_appointments: "Appointments", nav_sales: "Sales", nav_invoices: "Invoices",
+                nav_customers: "Customers", nav_products: "Products", nav_services: "Services", nav_staff: "Staff",
+                nav_expenses: "Expenses", nav_suppliers: "Suppliers", nav_reports: "Reports", nav_loyalty: "Loyalty",
+                nav_coupons: "Coupons", nav_settings: "Settings", user_name: "User Name", btn_logout: "Logout",
+                stat_customers: "Total Customers", stat_today_sales: "Today's Sales", stat_monthly_rev: "Monthly Revenue",
+                stat_today_appts: "Today's Appointments", chart_sales_trend: "Sales Trend (Last 7 Days)",
+                chart_payment_dist: "Payment Methods Distribution", appts_today: "Today's Appointments",
+                btn_new_appt: "New Appointment", btn_new_sale: "New Sale", btn_new_cust: "New Customer",
+                btn_new_prod: "New Product", btn_new_service: "New Service", btn_new_staff: "New Staff",
+                btn_new_expense: "New Expense", btn_new_supplier: "New Supplier", btn_new_coupon: "New Coupon",
+                report_pl: "Profit & Loss Report", report_total_rev: "Total Revenue:", report_total_exp: "Total Expenses:",
+                report_net_profit: "Net Profit:", report_staff_perf: "Staff Performance",
+                loyalty_stats: "Overall Statistics", tier_bronze: "Bronze", tier_silver: "Silver", tier_gold: "Gold",
+                loyalty_rules: "Rules", loyalty_rule_1: "Earn 1 point per 100 BDT spent", loyalty_rule_2: "Redeem 100 points = 50 BDT discount",
+                loyalty_list_title: "Customers by Points", setting_biz_info: "Business Information",
+                lbl_biz_name: "Business Name", lbl_biz_address: "Address", lbl_biz_phone: "Phone", lbl_biz_email: "Email",
+                lbl_currency: "Currency", lbl_tax_rate: "Tax Rate (%)", btn_save_settings: "Save Settings",
+                setting_backup: "Backup & Restore", btn_backup: "Backup", btn_restore: "Restore",
+                setting_reset: "Reset Data", reset_desc: "This will clear all customers, invoices, appointments, and products, but keep settings.",
+                btn_reset: "Reset Data", modal_new_appt: "New Appointment", modal_new_sale: "New Sale",
+                modal_new_cust: "New Customer", modal_new_prod: "New Product", modal_new_service: "New Service",
+                modal_new_staff: "New Staff", modal_new_expense: "New Expense", modal_new_supplier: "New Supplier",
+                modal_new_coupon: "New Coupon", modal_print_invoice: "Print Invoice", lbl_customer: "Customer",
+                lbl_service: "Service", lbl_staff: "Staff", lbl_date: "Date", lbl_time: "Time", lbl_duration: "Duration (min)",
+                lbl_notes: "Notes", lbl_description: "Description", lbl_amount: "Amount", lbl_name: "Name", lbl_phone: "Phone",
+                lbl_email: "Email", lbl_area: "Area", lbl_prod_name: "Product Name", lbl_category: "Category",
+                lbl_current_stock: "Current Stock", lbl_reorder_level: "Reorder Level", lbl_selling_price: "Selling Price",
+                lbl_cost_price: "Cost Price", lbl_service_name: "Service Name", lbl_price: "Price", lbl_role: "Role",
+                lbl_commission: "Commission Rate (%)", lbl_code: "Code", lbl_type: "Type", lbl_value: "Value",
+                lbl_expiry: "Expiry Date", lbl_item: "Item", lbl_qty: "Quantity", lbl_unit_price: "Unit Price",
+                lbl_discount: "Discount", lbl_total: "Total", lbl_payment: "Payment Method", lbl_customer_opt: "Customer (Optional)",
+                opt_walk_in: "Walk-in Customer", opt_service: "Service", opt_product: "Product",
+                type_percentage: "Percentage", type_fixed: "Fixed Amount", pay_cash: "Cash", pay_card: "Card",
+                pay_transfer: "Bank Transfer", pay_bkash: "bKash", pay_nagad: "Nagad", btn_save: "Save", btn_cancel: "Cancel",
+                btn_save_sale: "Save Sale", btn_print: "Print", btn_close: "Close", btn_report_bug: "Report Bug",
+                alert_success: "Success", alert_error: "Error", alert_login_success: "Login successful",
+                alert_logout_success: "Logged out successfully", alert_appt_saved: "Appointment saved",
+                alert_sale_saved: "Sale recorded", alert_cust_saved: "Customer added", alert_prod_saved: "Product added",
+                alert_service_saved: "Service added", alert_staff_saved: "Staff added", alert_expense_saved: "Expense recorded",
+                alert_supplier_saved: "Supplier added", alert_coupon_saved: "Coupon added", alert_settings_saved: "Settings saved",
+                alert_backup_done: "Backup completed", alert_restore_done: "Data restored", alert_reset_done: "Data reset",
+                alert_deleted: "Deleted", alert_bug_sent: "Bug report submitted successfully! Thank you.",
+                confirm_delete: "Are you sure?", status_booked: "Booked", status_arrived: "Arrived",
+                status_completed: "Completed", status_cancelled: "Cancelled", status_no_show: "No-show",
+                no_data: "No data available", no_appts_today: "No appointments for today", currency_label: "৳"
+            },
+            fa: {
+                login_subtitle: "سیستم مدیریت سالن زیبایی", login_email: "ایمیل", login_password: "رمز عبور",
+                placeholder_email: "email@example.com", placeholder_password: "••••••••", placeholder_search: "جستجو...",
+                btn_login: "ورود", btn_search: "جستجو", default_biz_name: "سیستم مدیریت سالن",
+                nav_dashboard: "داشبورد", nav_appointments: "قرارهای ملاقات", nav_sales: "فروش", nav_invoices: "فاکتورها",
+                nav_customers: "مشتریان", nav_products: "محصولات", nav_services: "خدمات", nav_staff: "کارکنان",
+                nav_expenses: "هزینه‌ها", nav_suppliers: "تامین‌کنندگان", nav_reports: "گزارش‌ها", nav_loyalty: "برنامه وفاداری",
+                nav_coupons: "کد تخفیف", nav_settings: "تنظیمات", user_name: "نام کاربر", btn_logout: "خروج",
+                stat_customers: "کل مشتریان", stat_today_sales: "فروش امروز", stat_monthly_rev: "درآمد ماهانه",
+                stat_today_appts: "قرارهای امروز", chart_sales_trend: "روند فروش 7 روز گذشته",
+                chart_payment_dist: "توزیع روش‌های پرداخت", appts_today: "قرارهای امروز",
+                btn_new_appt: "قرار جدید", btn_new_sale: "فروش جدید", btn_new_cust: "مشتری جدید",
+                btn_new_prod: "محصول جدید", btn_new_service: "خدمت جدید", btn_new_staff: "کارمند جدید",
+                btn_new_expense: "هزینه جدید", btn_new_supplier: "تامین‌کننده جدید", btn_new_coupon: "کد جدید",
+                report_pl: "گزارش سود و زیان", report_total_rev: "درآمد کل:", report_total_exp: "هزینه کل:",
+                report_net_profit: "سود خالص:", report_staff_perf: "عملکرد کارکنان",
+                loyalty_stats: "آمار کلی", tier_bronze: "برنز", tier_silver: "نقره", tier_gold: "طلا",
+                loyalty_rules: "قوانین", loyalty_rule_1: "کسب امتیاز: هر 100 تاکا = 1 امتیاز", loyalty_rule_2: "استفاده: 100 امتیاز = 50 تاکا تخفیف",
+                loyalty_list_title: "لیست مشتریان بر اساس امتیاز", setting_biz_info: "اطلاعات کسب‌وکار",
+                lbl_biz_name: "نام کسب‌وکار", lbl_biz_address: "آدرس", lbl_biz_phone: "تلفن", lbl_biz_email: "ایمیل",
+                lbl_currency: "واحد پول", lbl_tax_rate: "نرخ مالیات (%)", btn_save_settings: "ذخیره تنظیمات",
+                setting_backup: "پشتیبان‌گیری و بازیابی", btn_backup: "پشتیبان‌گیری", btn_restore: "بازیابی",
+                setting_reset: "ریست داده‌ها", reset_desc: "این عملیات تمام داده‌های مشتریان، فاکتورها، قرارها و محصولات را پاک می‌کند اما تنظیمات حفظ می‌شود.",
+                btn_reset: "ریست داده‌ها", modal_new_appt: "قرار ملاقات جدید", modal_new_sale: "فروش جدید",
+                modal_new_cust: "مشتری جدید", modal_new_prod: "محصول جدید", modal_new_service: "خدمت جدید",
+                modal_new_staff: "کارمند جدید", modal_new_expense: "هزینه جدید", modal_new_supplier: "تامین‌کننده جدید",
+                modal_new_coupon: "کد تخفیف جدید", modal_print_invoice: "چاپ فاکتور", lbl_customer: "مشتری",
+                lbl_service: "خدمت", lbl_staff: "کارمند", lbl_date: "تاریخ", lbl_time: "زمان", lbl_duration: "مدت (دقیقه)",
+                lbl_notes: "توضیحات", lbl_description: "توضیحات", lbl_amount: "مبلغ", lbl_name: "نام", lbl_phone: "تلفن",
+                lbl_email: "ایمیل", lbl_area: "منطقه", lbl_prod_name: "نام محصول", lbl_category: "دسته‌بندی",
+                lbl_current_stock: "موجودی فعلی", lbl_reorder_level: "سطح سفارش مجدد", lbl_selling_price: "قیمت فروش",
+                lbl_cost_price: "قیمت خرید", lbl_service_name: "نام خدمت", lbl_price: "قیمت", lbl_role: "نقش",
+                lbl_commission: "نرخ کمیسیون (%)", lbl_code: "کد", lbl_type: "نوع", lbl_value: "مقدار",
+                lbl_expiry: "تاریخ انقضا", lbl_item: "مورد", lbl_qty: "تعداد", lbl_unit_price: "قیمت واحد",
+                lbl_discount: "تخفیف", lbl_total: "مجموع", lbl_payment: "روش پرداخت", lbl_customer_opt: "مشتری (اختیاری)",
+                opt_walk_in: "مشتری عبوری", opt_service: "خدمت", opt_product: "محصول",
+                type_percentage: "درصدی", type_fixed: "مبلغ ثابت", pay_cash: "نقدی", pay_card: "کارت",
+                pay_transfer: "انتقال بانکی", pay_bkash: "بیکاش (bKash)", pay_nagad: "ناگاد (Nagad)", btn_save: "ذخیره", btn_cancel: "انصراف",
+                btn_save_sale: "ثبت فروش", btn_print: "چاپ", btn_close: "بستن", btn_report_bug: "گزارش خرابی",
+                alert_success: "موفقیت", alert_error: "خطا", alert_login_success: "ورود موفقیت‌آمیز بود",
+                alert_logout_success: "خروج موفقیت‌آمیز بود", alert_appt_saved: "قرار ملاقات ثبت شد",
+                alert_sale_saved: "فروش ثبت شد", alert_cust_saved: "مشتری اضافه شد", alert_prod_saved: "محصول اضافه شد",
+                alert_service_saved: "خدمت اضافه شد", alert_staff_saved: "کارمند اضافه شد", alert_expense_saved: "هزینه ثبت شد",
+                alert_supplier_saved: "تامین‌کننده اضافه شد", alert_coupon_saved: "کد تخفیف اضافه شد", alert_settings_saved: "تنظیمات ذخیره شد",
+                alert_backup_done: "پشتیبان‌گیری انجام شد", alert_restore_done: "داده‌ها بازیابی شدند", alert_reset_done: "داده‌ها ریست شدند",
+                alert_deleted: "حذف شد", alert_bug_sent: "گزارش خرابی با موفقیت ارسال شد! با تشکر.",
+                confirm_delete: "آیا مطمئن هستید؟", status_booked: "رزرو شده", status_arrived: "مراجعه کرده",
+                status_completed: "تکمیل شده", status_cancelled: "لغو شده", status_no_show: "عدم حضور",
+                no_data: "داده‌ای وجود ندارد", no_appts_today: "قرار ملاقاتی برای امروز وجود ندارد", currency_label: "৳"
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('iconhair_lang', lang);
+            const root = document.documentElement;
+            root.lang = lang;
+            root.dir = lang === 'fa' ? 'rtl' : 'ltr';
+            document.getElementById('langLabel').textContent = lang === 'en' ? 'FA' : 'EN';
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) el.textContent = translations[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang][key]) el.placeholder = translations[lang][key];
+            });
+            renderAppointments(); renderSales(); renderInvoices(); renderCustomers(); renderProducts();
+            renderServices(); renderStaff(); renderExpenses(); renderSuppliers(); renderCoupons();
+            updateDashboard(); updateReports(); updateLoyalty();
+        }
+
+        window.toggleLanguage = function() { setLanguage(currentLang === 'en' ? 'fa' : 'en'); };
+        function t(key) { return translations[currentLang][key] || key; }
+
+        function showAlert(message, type = 'success') {
+            const alert = document.createElement('div');
+            alert.className = `alert p-4 rounded-lg shadow-lg text-white ${type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`;
+            const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+            alert.innerHTML = `<div class="flex items-center"><i class="fas ${icon} ms-2"></i><span>${message}</span></div>`;
+            document.getElementById('alertContainer').appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        function clearLoginForm() {
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('loginInfo').classList.add('hidden');
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            const loginBtn = document.getElementById('loginBtn');
+            try {
+                errorDiv.classList.add('hidden');
+                loginBtn.innerHTML = `<i class="fas fa-spinner fa-spin ms-2"></i>${t('btn_login')}...`;
+                loginBtn.disabled = true;
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                currentUser = userCredential.user;
+                clearLoginForm();
+                await loadUserData();
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                showAlert(t('alert_login_success'));
+            } catch (error) {
+                errorDiv.textContent = t('alert_error') + ': ' + error.message;
+                errorDiv.classList.remove('hidden');
+            } finally {
+                loginBtn.innerHTML = `<i class="fas fa-sign-in-alt ms-2"></i>${t('btn_login')}`;
+                loginBtn.disabled = false;
+            }
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                clearLoginForm();
+                await loadUserData();
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+            } else {
+                currentUser = null;
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+                clearLoginForm();
+            }
+        });
+
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                currentUser = null;
+                clearLoginForm();
+                showAlert(t('alert_logout_success'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+
+        async function loadUserData() {
+            try { setupRealtimeListeners(); } 
+            catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        }
+
+        function setupRealtimeListeners() {
+            onSnapshot(collection(db, 'customers'), (snapshot) => { allData.customers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderCustomers(); updateDashboard(); });
+            onSnapshot(collection(db, 'appointments'), (snapshot) => { allData.appointments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderAppointments(); updateDashboard(); });
+            onSnapshot(collection(db, 'sales'), (snapshot) => { allData.sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSales(); renderInvoices(); updateDashboard(); updateReports(); });
+            onSnapshot(collection(db, 'products'), (snapshot) => { allData.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderProducts(); });
+            onSnapshot(collection(db, 'services'), (snapshot) => { allData.services = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderServices(); });
+            onSnapshot(collection(db, 'staff'), (snapshot) => { allData.staff = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderStaff(); updateReports(); });
+            onSnapshot(collection(db, 'expenses'), (snapshot) => { allData.expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderExpenses(); updateReports(); });
+            onSnapshot(collection(db, 'suppliers'), (snapshot) => { allData.suppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderSuppliers(); });
+            onSnapshot(collection(db, 'coupons'), (snapshot) => { allData.coupons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); renderCoupons(); });
+            onSnapshot(collection(db, 'settings'), (snapshot) => {
+                if (!snapshot.empty) { allData.settings = snapshot.docs[0].data(); allData.settings.id = snapshot.docs[0].id; loadSettings(); }
+            });
+        }
+
+        window.showPage = function(pageName) {
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+            document.getElementById(pageName).classList.remove('hidden');
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.sidebar-item').classList.add('active');
+        };
+
+        function openModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
+        window.closeModal = function(modalId) { document.getElementById(modalId).classList.add('hidden'); };
+
+        function updateDashboard() {
+            document.getElementById('totalCustomers').textContent = allData.customers.length;
+            const today = new Date().toISOString().split('T')[0];
+            const todaySalesData = allData.sales.filter(s => s.date === today);
+            document.getElementById('todaySales').textContent = todaySalesData.reduce((sum, s) => sum + (s.total || 0), 0).toLocaleString() + ' ' + t('currency_label');
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            const monthlySales = allData.sales.filter(s => { if (!s.date) return false; const d = new Date(s.date); return d.getMonth() === currentMonth && d.getFullYear() === currentYear; });
+            document.getElementById('monthlyRevenue').textContent = monthlySales.reduce((sum, s) => sum + (s.total || 0), 0).toLocaleString() + ' ' + t('currency_label');
+            const todayAppts = allData.appointments.filter(a => a.date === today);
+            document.getElementById('todayAppointments').textContent = todayAppts.length;
+            const list = document.getElementById('todayAppointmentsList');
+            if (todayAppts.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_appts_today')}</p>`; } 
+            else {
+                list.innerHTML = todayAppts.map(apt => {
+                    const customer = allData.customers.find(c => c.id === apt.customerId);
+                    const service = allData.services.find(s => s.id === apt.serviceId);
+                    const staff = allData.staff.find(st => st.id === apt.staffId);
+                    return `<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div><p class="font-medium">${customer?.name || 'N/A'}</p><p class="text-sm text-gray-600">${service?.name || 'N/A'}</p><p class="text-sm text-gray-600">${t('lbl_staff')}: ${staff?.name || 'N/A'}</p></div>
+                        <div class="text-end"><p class="font-medium">${apt.time || ''}</p><span class="px-3 py-1 rounded-full text-xs status-${apt.status || 'booked'}">${t('status_' + (apt.status || 'booked'))}</span></div>
+                    </div>`;
+                }).join('');
+            }
+            updateCharts();
+        }
+
+        function updateCharts() {
+            const salesCtx = document.getElementById('salesChart'); if (!salesCtx) return;
+            const last7Days = [], salesData = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(); date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                last7Days.push(date.toLocaleDateString(currentLang === 'fa' ? 'fa-IR' : 'en-US', { weekday: 'short' }));
+                salesData.push(allData.sales.filter(s => s.date === dateStr).reduce((sum, s) => sum + (s.total || 0), 0));
+            }
+            if (window.salesChartInstance) window.salesChartInstance.destroy();
+            window.salesChartInstance = new Chart(salesCtx, {
+                type: 'line', data: { labels: last7Days, datasets: [{ label: t('stat_today_sales'), data: salesData, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', tension: 0.4, fill: true }] },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+            const paymentCtx = document.getElementById('paymentChart'); if (!paymentCtx) return;
+            const paymentMethods = {};
+            allData.sales.forEach(s => { const m = s.payment || 'cash'; paymentMethods[m] = (paymentMethods[m] || 0) + (s.total || 0); });
+            const pLabels = Object.keys(paymentMethods).map(m => { const map = { cash: t('pay_cash'), card: t('pay_card'), transfer: t('pay_transfer'), bkash: t('pay_bkash'), nagad: t('pay_nagad') }; return map[m] || m; });
+            if (window.paymentChartInstance) window.paymentChartInstance.destroy();
+            window.paymentChartInstance = new Chart(paymentCtx, {
+                type: 'doughnut', data: { labels: pLabels, datasets: [{ data: Object.values(paymentMethods), backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899'] }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // --- CRUD Operations ---
+        window.openAppointmentModal = function() {
+            document.getElementById('appointmentCustomer').innerHTML = `<option value="">${t('lbl_customer')}</option>` + allData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('appointmentService').innerHTML = `<option value="">${t('lbl_service')}</option>` + allData.services.filter(s => s.active !== false).map(s => `<option value="${s.id}" data-duration="${s.duration}">${s.name} - ${s.price} ${t('currency_label')}</option>`).join('');
+            document.getElementById('appointmentStaff').innerHTML = `<option value="">${t('lbl_staff')}</option>` + allData.staff.filter(st => st.active !== false).map(st => `<option value="${st.id}">${st.name}</option>`).join('');
+            document.getElementById('appointmentForm').reset(); openModal('appointmentModal');
+        };
+        window.updateDuration = function() {
+            const service = allData.services.find(s => s.id === document.getElementById('appointmentService').value);
+            if (service) document.getElementById('appointmentDuration').value = service.duration;
+        };
+        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'appointments'), { customerId: document.getElementById('appointmentCustomer').value, serviceId: document.getElementById('appointmentService').value, staffId: document.getElementById('appointmentStaff').value, date: document.getElementById('appointmentDate').value, time: document.getElementById('appointmentTime').value, duration: parseInt(document.getElementById('appointmentDuration').value), notes: document.getElementById('appointmentNotes').value, status: 'booked', createdAt: serverTimestamp() });
+                closeModal('appointmentModal'); showAlert(t('alert_appt_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderAppointments() {
+            const list = document.getElementById('appointmentsList');
+            if (allData.appointments.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.appointments.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time)).map(apt => {
+                const customer = allData.customers.find(c => c.id === apt.customerId);
+                const service = allData.services.find(s => s.id === apt.serviceId);
+                const staff = allData.staff.find(st => st.id === apt.staffId);
+                return `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1"><p class="font-medium text-lg">${customer?.name || 'N/A'}</p><p class="text-sm text-gray-600">${service?.name || 'N/A'} - ${staff?.name || 'N/A'}</p><p class="text-sm text-gray-500 mt-1"><i class="fas fa-calendar ms-1"></i>${apt.date || ''} <i class="fas fa-clock me-3 ms-1"></i>${apt.time || ''}</p></div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <span class="px-3 py-1 rounded-full text-xs status-${apt.status || 'booked'}">${t('status_' + (apt.status || 'booked'))}</span>
+                        <button onclick="updateAppointmentStatus('${apt.id}')" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteAppointment('${apt.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        window.updateAppointmentStatus = async function(id) {
+            const apt = allData.appointments.find(a => a.id === id);
+            const statuses = ['booked', 'arrived', 'completed', 'cancelled', 'no-show'];
+            const nextStatus = statuses[(statuses.indexOf(apt.status || 'booked') + 1) % statuses.length];
+            try { await updateDoc(doc(db, 'appointments', id), { status: nextStatus }); showAlert(t('alert_success')); } 
+            catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+        window.deleteAppointment = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'appointments', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+        window.searchAppointments = function() { const q = document.getElementById('appointmentSearch').value.toLowerCase(); document.querySelectorAll('#appointmentsList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+
+        // Sales
+        window.openSaleModal = function() {
+            document.getElementById('saleCustomer').innerHTML = `<option value="">${t('opt_walk_in')}</option>` + allData.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            document.getElementById('saleStaff').innerHTML = `<option value="">${t('lbl_staff')}</option>` + allData.staff.filter(st => st.active !== false).map(st => `<option value="${st.id}">${st.name}</option>`).join('');
+            document.getElementById('saleForm').reset(); updateSaleItems(); openModal('saleModal');
+        };
+        window.updateSaleItems = function() {
+            const type = document.getElementById('saleType').value; const select = document.getElementById('saleItem');
+            if (type === 'service') { select.innerHTML = `<option value="">${t('lbl_service')}</option>` + allData.services.filter(s => s.active !== false).map(s => `<option value="${s.id}" data-price="${s.price}">${s.name} - ${s.price} ${t('currency_label')}</option>`).join(''); } 
+            else { select.innerHTML = `<option value="">${t('lbl_prod_name')}</option>` + allData.products.filter(p => p.currentStock > 0).map(p => `<option value="${p.id}" data-price="${p.sellingPrice}">${p.name} - ${p.sellingPrice} ${t('currency_label')} (${t('lbl_current_stock')}: ${p.currentStock})</option>`).join(''); }
+        };
+        window.updateSalePrice = function() {
+            const selected = document.getElementById('saleItem').options[document.getElementById('saleItem').selectedIndex];
+            if (selected && selected.dataset.price) { document.getElementById('saleUnitPrice').value = selected.dataset.price; calculateSaleTotal(); }
+        };
+        window.calculateSaleTotal = function() {
+            const qty = parseInt(document.getElementById('saleQty').value) || 0;
+            const price = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
+            const discount = parseFloat(document.getElementById('saleDiscount').value) || 0;
+            document.getElementById('saleTotal').value = (qty * price) - discount;
+        };
+        document.getElementById('saleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const itemId = document.getElementById('saleItem').value; const qty = parseInt(document.getElementById('saleQty').value); const type = document.getElementById('saleType').value;
+                const total = parseFloat(document.getElementById('saleTotal').value); const customerId = document.getElementById('saleCustomer').value;
+                await addDoc(collection(db, 'sales'), { invoiceNo: 'INV-' + Date.now(), date: new Date().toISOString().split('T')[0], customerId: customerId || null, type: type, itemId: itemId, qty: qty, unitPrice: parseFloat(document.getElementById('saleUnitPrice').value), discount: parseFloat(document.getElementById('saleDiscount').value) || 0, total: total, payment: document.getElementById('salePayment').value, staffId: document.getElementById('saleStaff').value || null, createdAt: serverTimestamp() });
+                if (type === 'product') { const product = allData.products.find(p => p.id === itemId); if (product) await updateDoc(doc(db, 'products', itemId), { currentStock: product.currentStock - qty }); }
+                if (customerId) {
+                    const customer = allData.customers.find(c => c.id === customerId);
+                    const points = Math.floor(total / 100); const newPoints = (customer.loyaltyPoints || 0) + points;
+                    const tier = newPoints >= 1501 ? 'gold' : newPoints >= 501 ? 'silver' : 'bronze';
+                    await updateDoc(doc(db, 'customers', customerId), { loyaltyPoints: newPoints, tier: tier, totalSpent: (customer.totalSpent || 0) + total });
+                }
+                closeModal('saleModal'); showAlert(t('alert_sale_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderSales() {
+            const list = document.getElementById('salesList');
+            if (allData.sales.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.sales.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 50).map(sale => {
+                const customer = sale.customerId ? allData.customers.find(c => c.id === sale.customerId) : null;
+                return `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1"><p class="font-medium">${sale.invoiceNo}</p><p class="text-sm text-gray-600">${customer?.name || t('opt_walk_in')}</p><p class="text-sm text-gray-500">${sale.date || ''} - ${sale.type === 'service' ? t('opt_service') : t('opt_product')}</p></div>
+                    <div class="text-end"><p class="font-bold text-lg text-green-600">${sale.total.toLocaleString()} ${t('currency_label')}</p><p class="text-xs text-gray-500">${t('pay_' + sale.payment)}</p></div>
+                </div>`;
+            }).join('');
+        }
+        window.searchSales = function() { const q = document.getElementById('salesSearch').value.toLowerCase(); document.querySelectorAll('#salesList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+
+        // Invoices
+        function renderInvoices() {
+            const list = document.getElementById('invoicesList');
+            if (allData.sales.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.sales.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).map(sale => {
+                const customer = sale.customerId ? allData.customers.find(c => c.id === sale.customerId) : null;
+                return `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1"><p class="font-medium">${sale.invoiceNo}</p><p class="text-sm text-gray-600">${customer?.name || t('opt_walk_in')}</p><p class="text-sm text-gray-500">${sale.date || ''}</p></div>
+                    <div class="flex items-center space-x-4 space-x-reverse">
+                        <p class="font-bold text-lg text-green-600">${sale.total.toLocaleString()} ${t('currency_label')}</p>
+                        <button onclick="printInvoiceById('${sale.id}')" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-print"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        window.searchInvoices = function() { const q = document.getElementById('invoiceSearch').value.toLowerCase(); document.querySelectorAll('#invoicesList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.printInvoiceById = function(id) {
+            const sale = allData.sales.find(s => s.id === id);
+            const customer = sale.customerId ? allData.customers.find(c => c.id === sale.customerId) : null;
+            const item = sale.type === 'service' ? allData.services.find(s => s.id === sale.itemId) : allData.products.find(p => p.id === sale.itemId);
+            // Logo placeholder for invoice
+            const logoUrl = "https://via.placeholder.com/150x60/4f46e5/ffffff?text=ICON+HAIR"; 
+            const content = `
+                <div class="text-center mb-6">
+                    <img src="${logoUrl}" alt="Logo" class="h-16 mx-auto mb-4 object-contain">
+                    <h1 class="text-3xl font-bold">${allData.settings.bizName || 'ICON HAIR'}</h1>
+                    <p>${allData.settings.bizAddress || ''}</p><p>${allData.settings.bizPhone || ''}</p>
+                </div>
+                <div class="border-t border-b py-4 mb-4"><div class="flex justify-between"><div><p class="font-bold">${t('nav_invoices')}: ${sale.invoiceNo}</p><p>${t('lbl_date')}: ${sale.date}</p></div><div><p class="font-bold">${t('lbl_customer')}: ${customer?.name || t('opt_walk_in')}</p><p>${t('lbl_phone')}: ${customer?.phone || ''}</p></div></div></div>
+                <table class="w-full mb-4"><thead><tr class="border-b"><th class="text-start py-2">${t('lbl_description')}</th><th class="text-center py-2">${t('lbl_qty')}</th><th class="text-center py-2">${t('lbl_unit_price')}</th><th class="text-center py-2">${t('lbl_discount')}</th><th class="text-end py-2">${t('lbl_total')}</th></tr></thead>
+                <tbody><tr class="border-b"><td class="py-2">${item?.name || 'N/A'}</td><td class="text-center py-2">${sale.qty}</td><td class="text-center py-2">${sale.unitPrice.toLocaleString()}</td><td class="text-center py-2">${sale.discount.toLocaleString()}</td><td class="text-end py-2">${sale.total.toLocaleString()}</td></tr></tbody></table>
+                <div class="border-t pt-4"><div class="flex justify-between font-bold text-lg"><span>${t('lbl_total')}:</span><span>${sale.total.toLocaleString()} ${t('currency_label')}</span></div><div class="flex justify-between text-sm mt-2"><span>${t('lbl_payment')}:</span><span>${t('pay_' + sale.payment)}</span></div></div>
+                <div class="text-center mt-8 text-sm text-gray-600"><p>${currentLang === 'fa' ? 'از خرید شما متشکریم!' : 'Thank you for your purchase!'}</p></div>
+            `;
+            document.getElementById('invoicePrintContent').innerHTML = content;
+            openModal('invoicePrintModal');
+        };
+        window.printInvoice = function() { window.print(); };
+
+        // Customers
+        window.openCustomerModal = function() { document.getElementById('customerForm').reset(); openModal('customerModal'); };
+        document.getElementById('customerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'customers'), { name: document.getElementById('customerName').value, phone: document.getElementById('customerPhone').value, email: document.getElementById('customerEmail').value, area: document.getElementById('customerArea').value, notes: document.getElementById('customerNotes').value, loyaltyPoints: 0, tier: 'bronze', totalSpent: 0, createdAt: serverTimestamp() });
+                closeModal('customerModal'); showAlert(t('alert_cust_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderCustomers() {
+            const list = document.getElementById('customersList');
+            if (allData.customers.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.customers.map(c => {
+                const tierClass = c.tier === 'gold' ? 'tier-gold' : c.tier === 'silver' ? 'tier-silver' : 'tier-bronze';
+                return `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1"><div class="flex items-center space-x-2 space-x-reverse"><p class="font-medium text-lg">${c.name}</p><span class="px-2 py-1 rounded text-xs ${tierClass}">${t('tier_' + (c.tier || 'bronze'))}</span></div>
+                    <p class="text-sm text-gray-600">${c.phone || ''} | ${c.email || ''}</p><p class="text-sm text-gray-500">${c.area || ''}</p>
+                    <p class="text-xs text-gray-500 mt-1">${t('nav_loyalty')}: ${c.loyaltyPoints || 0} | ${t('stat_today_sales')}: ${(c.totalSpent || 0).toLocaleString()} ${t('currency_label')}</p></div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <button onclick="editCustomer('${c.id}')" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteCustomer('${c.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        window.searchCustomers = function() { const q = document.getElementById('customerSearch').value.toLowerCase(); document.querySelectorAll('#customersList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.editCustomer = async function(id) {
+            const c = allData.customers.find(x => x.id === id);
+            const name = prompt(t('lbl_name') + ':', c.name); if (name === null) return;
+            const phone = prompt(t('lbl_phone') + ':', c.phone); if (phone === null) return;
+            try { await updateDoc(doc(db, 'customers', id), { name, phone }); showAlert(t('alert_success')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+        window.deleteCustomer = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'customers', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Products
+        window.openProductModal = function() { document.getElementById('productForm').reset(); openModal('productModal'); };
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'products'), { name: document.getElementById('productName').value, category: document.getElementById('productCategory').value, currentStock: parseInt(document.getElementById('productCurrentStock').value), reorderLevel: parseInt(document.getElementById('productReorderLevel').value), sellingPrice: parseFloat(document.getElementById('productSellingPrice').value), costPrice: parseFloat(document.getElementById('productCostPrice').value), createdAt: serverTimestamp() });
+                closeModal('productModal'); showAlert(t('alert_prod_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderProducts() {
+            const list = document.getElementById('productsList');
+            if (allData.products.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.products.map(p => {
+                let stockClass = 'stock-ok', stockText = t('lbl_current_stock');
+                if (p.currentStock <= 0) { stockClass = 'stock-out'; stockText = currentLang === 'fa' ? 'ناموجود' : 'Out of Stock'; }
+                else if (p.currentStock <= p.reorderLevel) { stockClass = 'stock-low'; stockText = currentLang === 'fa' ? 'موجودی کم' : 'Low Stock'; }
+                return `<div class="flex items-center justify-between p-4 ${stockClass} rounded-lg hover:bg-gray-100 transition">
+                    <div class="flex-1"><p class="font-medium text-lg">${p.name}</p><p class="text-sm text-gray-600">${p.category}</p>
+                    <p class="text-sm text-gray-500">${t('lbl_current_stock')}: ${p.currentStock} | ${t('lbl_selling_price')}: ${p.sellingPrice.toLocaleString()} ${t('currency_label')}</p>
+                    <p class="text-xs text-gray-500 mt-1">${stockText}</p></div>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <button onclick="editProduct('${p.id}')" class="text-indigo-600 hover:text-indigo-800"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteProduct('${p.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        window.searchProducts = function() { const q = document.getElementById('productSearch').value.toLowerCase(); document.querySelectorAll('#productsList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.editProduct = async function(id) {
+            const p = allData.products.find(x => x.id === id);
+            const name = prompt(t('lbl_prod_name') + ':', p.name); if (name === null) return;
+            const price = prompt(t('lbl_selling_price') + ':', p.sellingPrice); if (price === null) return;
+            try { await updateDoc(doc(db, 'products', id), { name, sellingPrice: parseFloat(price) }); showAlert(t('alert_success')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+        window.deleteProduct = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'products', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Services
+        window.openServiceModal = function() { document.getElementById('serviceForm').reset(); openModal('serviceModal'); };
+        document.getElementById('serviceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'services'), { name: document.getElementById('serviceName').value, category: document.getElementById('serviceCategory').value, price: parseFloat(document.getElementById('servicePrice').value), duration: parseInt(document.getElementById('serviceDuration').value), active: true, createdAt: serverTimestamp() });
+                closeModal('serviceModal'); showAlert(t('alert_service_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderServices() {
+            const list = document.getElementById('servicesList');
+            if (allData.services.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.services.map(s => `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <div class="flex-1"><p class="font-medium text-lg">${s.name}</p><p class="text-sm text-gray-600">${s.category}</p>
+                <p class="text-sm text-gray-500">${t('lbl_price')}: ${s.price.toLocaleString()} ${t('currency_label')} | ${t('lbl_duration')}: ${s.duration} min</p></div>
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <button onclick="deleteService('${s.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`).join('');
+        }
+        window.searchServices = function() { const q = document.getElementById('serviceSearch').value.toLowerCase(); document.querySelectorAll('#servicesList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.deleteService = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'services', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Staff
+        window.openStaffModal = function() { document.getElementById('staffForm').reset(); openModal('staffModal'); };
+        document.getElementById('staffForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'staff'), { name: document.getElementById('staffName').value, role: document.getElementById('staffRole').value, phone: document.getElementById('staffPhone').value, commissionRate: parseFloat(document.getElementById('staffCommissionRate').value), active: true, createdAt: serverTimestamp() });
+                closeModal('staffModal'); showAlert(t('alert_staff_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderStaff() {
+            const list = document.getElementById('staffList');
+            if (allData.staff.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.staff.map(st => `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <div class="flex-1"><p class="font-medium text-lg">${st.name}</p><p class="text-sm text-gray-600">${st.role}</p>
+                <p class="text-sm text-gray-500">${st.phone}</p><p class="text-xs text-gray-500 mt-1">${t('lbl_commission')}: ${st.commissionRate}%</p></div>
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <button onclick="deleteStaff('${st.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`).join('');
+        }
+        window.searchStaff = function() { const q = document.getElementById('staffSearch').value.toLowerCase(); document.querySelectorAll('#staffList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.deleteStaff = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'staff', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Expenses
+        window.openExpenseModal = function() { document.getElementById('expenseForm').reset(); document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0]; openModal('expenseModal'); };
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'expenses'), { date: document.getElementById('expenseDate').value, category: document.getElementById('expenseCategory').value, description: document.getElementById('expenseDescription').value, amount: parseFloat(document.getElementById('expenseAmount').value), createdAt: serverTimestamp() });
+                closeModal('expenseModal'); showAlert(t('alert_expense_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderExpenses() {
+            const list = document.getElementById('expensesList');
+            if (allData.expenses.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.expenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <div class="flex-1"><p class="font-medium">${exp.category}</p><p class="text-sm text-gray-600">${exp.description || ''}</p><p class="text-sm text-gray-500">${exp.date}</p></div>
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <p class="font-bold text-lg text-red-600">${exp.amount.toLocaleString()} ${t('currency_label')}</p>
+                    <button onclick="deleteExpense('${exp.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`).join('');
+        }
+        window.searchExpenses = function() { const q = document.getElementById('expenseSearch').value.toLowerCase(); document.querySelectorAll('#expensesList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.deleteExpense = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'expenses', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Suppliers
+        window.openSupplierModal = function() { document.getElementById('supplierForm').reset(); openModal('supplierModal'); };
+        document.getElementById('supplierForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'suppliers'), { name: document.getElementById('supplierName').value, phone: document.getElementById('supplierPhone').value, address: document.getElementById('supplierAddress').value, createdAt: serverTimestamp() });
+                closeModal('supplierModal'); showAlert(t('alert_supplier_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderSuppliers() {
+            const list = document.getElementById('suppliersList');
+            if (allData.suppliers.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.suppliers.map(s => `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <div class="flex-1"><p class="font-medium text-lg">${s.name}</p><p class="text-sm text-gray-600">${s.phone}</p><p class="text-sm text-gray-500">${s.address || ''}</p></div>
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <button onclick="deleteSupplier('${s.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`).join('');
+        }
+        window.searchSuppliers = function() { const q = document.getElementById('supplierSearch').value.toLowerCase(); document.querySelectorAll('#suppliersList > div').forEach(item => { item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
+        window.deleteSupplier = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'suppliers', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Coupons
+        window.openCouponModal = function() { document.getElementById('couponForm').reset(); openModal('couponModal'); };
+        document.getElementById('couponForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await addDoc(collection(db, 'coupons'), { code: document.getElementById('couponCode').value, type: document.getElementById('couponType').value, value: parseFloat(document.getElementById('couponValue').value), expiryDate: document.getElementById('couponExpiryDate').value, active: true, createdAt: serverTimestamp() });
+                closeModal('couponModal'); showAlert(t('alert_coupon_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        });
+        function renderCoupons() {
+            const list = document.getElementById('couponsList');
+            if (allData.coupons.length === 0) { list.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; return; }
+            list.innerHTML = allData.coupons.map(c => `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <div class="flex-1"><p class="font-medium text-lg">${c.code}</p><p class="text-sm text-gray-600">${c.type === 'percentage' ? c.value + '%' : c.value.toLocaleString() + ' ' + t('currency_label')}</p>
+                <p class="text-sm text-gray-500">${t('lbl_expiry')}: ${c.expiryDate}</p></div>
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <button onclick="deleteCoupon('${c.id}')" class="text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`).join('');
+        }
+        window.deleteCoupon = async function(id) { if (!confirm(t('confirm_delete'))) return; try { await deleteDoc(doc(db, 'coupons', id)); showAlert(t('alert_deleted')); } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); } };
+
+        // Reports
+        function updateReports() {
+            const totalRevenue = allData.sales.reduce((sum, s) => sum + (s.total || 0), 0);
+            const totalExpenses = allData.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+            document.getElementById('reportTotalRevenue').textContent = totalRevenue.toLocaleString() + ' ' + t('currency_label');
+            document.getElementById('reportTotalExpenses').textContent = totalExpenses.toLocaleString() + ' ' + t('currency_label');
+            document.getElementById('reportNetProfit').textContent = (totalRevenue - totalExpenses).toLocaleString() + ' ' + t('currency_label');
+            const staffPerformance = {};
+            allData.sales.forEach(sale => {
+                if (sale.staffId) {
+                    if (!staffPerformance[sale.staffId]) staffPerformance[sale.staffId] = { count: 0, revenue: 0 };
+                    staffPerformance[sale.staffId].count++;
+                    staffPerformance[sale.staffId].revenue += sale.total || 0;
+                }
+            });
+            const perfList = document.getElementById('staffPerformanceReport');
+            if (Object.keys(staffPerformance).length === 0) { perfList.innerHTML = `<p class="text-gray-500 text-center py-4">${t('no_data')}</p>`; }
+            else {
+                perfList.innerHTML = Object.entries(staffPerformance).map(([staffId, data]) => {
+                    const staff = allData.staff.find(s => s.id === staffId);
+                    return `<div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <div><p class="font-medium">${staff?.name || 'N/A'}</p><p class="text-sm text-gray-600">${data.count} ${t('nav_customers').toLowerCase()}</p></div>
+                        <p class="font-bold text-green-600">${data.revenue.toLocaleString()} ${t('currency_label')}</p>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        // Loyalty
+        function updateLoyalty() {
+            document.getElementById('bronzeCount').textContent = allData.customers.filter(c => c.tier === 'bronze').length;
+            document.getElementById('silverCount').textContent = allData.customers.filter(c => c.tier === 'silver').length;
+            document.getElementById('goldCount').textContent = allData.customers.filter(c => c.tier === 'gold').length;
+            const loyaltyList = document.getElementById('loyaltyList');
+            const sorted = allData.customers.sort((a, b) => (b.loyaltyPoints || 0) - (a.loyaltyPoints || 0));
+            loyaltyList.innerHTML = sorted.map(c => {
+                const tierClass = c.tier === 'gold' ? 'tier-gold' : c.tier === 'silver' ? 'tier-silver' : 'tier-bronze';
+                return `<div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div class="flex-1"><div class="flex items-center space-x-2 space-x-reverse"><p class="font-medium">${c.name}</p><span class="px-2 py-1 rounded text-xs ${tierClass}">${t('tier_' + (c.tier || 'bronze'))}</span></div>
+                    <p class="text-sm text-gray-600">${c.phone || ''}</p></div>
+                    <div class="text-end"><p class="font-bold text-lg">${(c.loyaltyPoints || 0).toLocaleString()} pts</p>
+                    <p class="text-sm text-gray-500">${t('stat_today_sales')}: ${(c.totalSpent || 0).toLocaleString()} ${t('currency_label')}</p></div>
+                </div>`;
+            }).join('');
+        }
+
+        // Settings
+        function loadSettings() {
+            document.getElementById('settingBizName').value = allData.settings.bizName || '';
+            document.getElementById('settingBizAddress').value = allData.settings.bizAddress || '';
+            document.getElementById('settingBizPhone').value = allData.settings.bizPhone || '';
+            document.getElementById('settingBizEmail').value = allData.settings.bizEmail || '';
+            document.getElementById('settingCurrency').value = allData.settings.currency || 'BDT';
+            document.getElementById('settingTaxRate').value = allData.settings.taxRate || 0;
+            document.getElementById('bizName').textContent = allData.settings.bizName || t('default_biz_name');
+        }
+        window.saveSettings = async function() {
+            try {
+                const settingsData = { bizName: document.getElementById('settingBizName').value, bizAddress: document.getElementById('settingBizAddress').value, bizPhone: document.getElementById('settingBizPhone').value, bizEmail: document.getElementById('settingBizEmail').value, currency: document.getElementById('settingCurrency').value, taxRate: parseFloat(document.getElementById('settingTaxRate').value) || 0 };
+                if (allData.settings.id) { await updateDoc(doc(db, 'settings', allData.settings.id), settingsData); }
+                else { await addDoc(collection(db, 'settings'), settingsData); }
+                showAlert(t('alert_settings_saved'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+        window.exportData = function() {
+            const data = { ...allData, exportDate: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `iconhair-backup-${new Date().toISOString().split('T')[0]}.json`; a.click();
+            showAlert(t('alert_backup_done'));
+        };
+        window.importData = async function(event) {
+            const file = event.target.files[0]; if (!file) return;
+            try {
+                const text = await file.text(); JSON.parse(text);
+                if (!confirm(currentLang === 'fa' ? 'آیا مطمئن هستید؟ این عملیات داده‌های فعلی را بازنویسی می‌کند.' : 'Are you sure? This will overwrite current data.')) return;
+                showAlert(t('alert_restore_done'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+        window.resetData = async function() {
+            if (!confirm(t('confirm_delete'))) return;
+            if (!confirm(currentLang === 'fa' ? 'این عملیات غیرقابل بازگشت است. ادامه می‌دهید؟' : 'This action is irreversible. Continue?')) return;
+            try {
+                const collections = ['customers', 'appointments', 'sales', 'products', 'services', 'staff', 'expenses', 'suppliers', 'coupons'];
+                for (const collName of collections) {
+                    const snapshot = await getDocs(collection(db, collName));
+                    for (const d of snapshot.docs) { await deleteDoc(d.ref); }
+                }
+                showAlert(t('alert_reset_done'));
+            } catch (error) { showAlert(t('alert_error') + ': ' + error.message, 'error'); }
+        };
+
+        // Bug Report Feature
+        document.getElementById('bugForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('bugTitle').value;
+            const desc = document.getElementById('bugDesc').value;
+            const fileInput = document.getElementById('bugImage');
+            let imageData = null;
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (file.size > 500000) { // 500KB limit for Firestore document safety
+                    showAlert(currentLang === 'fa' ? 'حجم عکس نباید بیشتر از 500 کیلوبایت باشد.' : 'Image size must be under 500KB.', 'error');
+                    return;
+                }
+                imageData = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onloadend = () => resolve(reader.result);
+                });
+            }
+
+            try {
+                await addDoc(collection(db, 'bug_reports'), {
+                    title, description: desc, image: imageData,
+                    userEmail: currentUser?.email || 'Unknown',
+                    date: new Date().toISOString(),
+                    status: 'open'
+                });
+                closeModal('bugModal');
+                document.getElementById('bugForm').reset();
+                showAlert(t('alert_bug_sent'));
+            } catch (error) {
+                showAlert(t('alert_error') + ': ' + error.message, 'error');
+            }
+        });
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Initialize
+        setLanguage(currentLang);
+    </script>
+</body>
+</html>
